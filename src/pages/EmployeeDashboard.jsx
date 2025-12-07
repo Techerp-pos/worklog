@@ -1,18 +1,45 @@
-import { Card, Tabs } from "antd";
+import { useState } from "react";
+import { auth } from "../firebase/config";
 import MyQR from "../components/MyQR";
 import MyAttendance from "../components/MyAttendance";
 import MySalary from "../components/MySalary";
+import "../styles/EmployeeDashboard.css";
 
 export default function EmployeeDashboard() {
-    const items = [
-        { key: "1", label: "My QR", children: <MyQR /> },
-        { key: "2", label: "My Attendance", children: <MyAttendance /> },
-        { key: "3", label: "My Salary", children: <MySalary /> },
-    ];
+    const [tab, setTab] = useState("qr");
+
+    const logout = async () => {
+        await auth.signOut();
+        window.location.href = "/login";
+    };
 
     return (
-        <Card title="Employee Dashboard">
-            <Tabs items={items} />
-        </Card>
+        <div className="ios-wrapper">
+
+            {/* Header */}
+            <div className="ios-header">
+                <h1 className="ios-title">Employee Dashboard</h1>
+
+                <button className="ios-logout-btn" onClick={logout}>
+                    Logout
+                </button>
+            </div>
+
+            {/* Segmented Control */}
+            <div className="ios-segment">
+                <div className="seg-indicator" data-tab={tab}></div>
+
+                <button onClick={() => setTab("qr")} className="ios-btn">My QR</button>
+                <button onClick={() => setTab("attendance")} className="ios-btn">Attendance</button>
+                <button onClick={() => setTab("salary")} className="ios-btn">Salary</button>
+            </div>
+
+            {/* Page Content */}
+            <div className="ios-content">
+                {tab === "qr" && <MyQR />}
+                {tab === "attendance" && <MyAttendance />}
+                {tab === "salary" && <MySalary />}
+            </div>
+        </div>
     );
 }

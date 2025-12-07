@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, Form, Input, Button, message } from "antd";
 import {
     signInWithEmailAndPassword,
@@ -27,6 +27,23 @@ export default function Login() {
             return u.orgId ? navigate("/employee") : navigate("/join-organization");
     };
 
+    useEffect(() => {
+        const raw = localStorage.getItem("worklog_user");
+        if (!raw) return;
+
+        try {
+            const user = JSON.parse(raw);
+
+            if (user.role === "superadmin") navigate("/superadmin");
+            if (user.role === "admin") navigate(user.orgId ? "/admin" : "/admin/setup");
+            if (user.role === "employee") navigate(user.orgId ? "/employee" : "/join-organization");
+
+        } catch {
+            localStorage.removeItem("worklog_user");
+        }
+    }, []);
+
+    
     // ================================
     // GOOGLE SIGN-IN (POPUP) → WORKS
     // ================================
@@ -112,7 +129,7 @@ export default function Login() {
 
             <div className="login-left">
                 <div className="login-box">
-                    <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 8, alignItems: 'center' }}>
                         <div className="logo-placeholder">W</div>
                         <h2 className="login-title">Welcome to WorkLog</h2>
                     </div>

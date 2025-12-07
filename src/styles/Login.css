@@ -29,6 +29,7 @@
 .login-box {
     width: 100%;
     max-width: 380px;
+    align-items: center;
     /* FIX: Prevents extremely wide form */
 }
 
@@ -49,7 +50,7 @@
     font-size: 26px;
     font-weight: 700;
     color: var(--text-dark);
-    margin-left: 6px;
+    margin: 0;
 }
 
 .login-subtitle {
@@ -141,11 +142,11 @@
         color: white;
         text-align: center;
         padding: 18px;
-        width: 100%;
         font-size: 32px;
         font-weight: 800;
         font-style: italic;
         margin-bottom: 20px;
+        border-radius: 20px;
     }
 
     /* Hide right panel */
@@ -155,9 +156,8 @@
 
     /* Adjust left panel */
     .login-left {
-        align-items: flex-start;
         /* FIX: No extra vertical spacing */
-        padding-top: 10px;
+        padding: 1px;
     }
 
     .login-box {

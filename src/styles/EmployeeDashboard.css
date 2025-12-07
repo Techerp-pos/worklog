@@ -1,0 +1,116 @@
+/* Wrapper */
+.ios-wrapper {
+    max-width: 900px;
+    margin: auto;
+    padding: 10px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+}
+
+/* Header */
+.ios-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+}
+
+.ios-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+}
+
+
+/* Logout button */
+.ios-logout-btn {
+    background: #ff3b30;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.ios-logout-btn:hover {
+    background: #d72a22;
+}
+
+/* Segmented Control */
+/* Segmented Control */
+.ios-segment {
+    position: relative;
+    display: flex;
+    /* ← FIXED: use flex */
+    justify-content: space-between;
+    align-items: center;
+    background: #ececee;
+    padding: 6px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+    height: 44px;
+}
+
+/* Tab buttons */
+.ios-segment button {
+    flex: 1;
+    /* ← ensures equal width */
+    z-index: 10;
+    background: transparent;
+    border: none;
+    font-weight: 600;
+    color: #444;
+    height: 100%;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: color 0.25s ease;
+}
+
+/* Sliding animated indicator */
+.seg-indicator {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    width: calc((100% - 12px) / 3);
+    /* Still correct */
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    transition: transform 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Move indicator */
+.seg-indicator[data-tab="qr"] {
+    transform: translateX(0%);
+}
+
+.seg-indicator[data-tab="attendance"] {
+    transform: translateX(100%);
+}
+
+.seg-indicator[data-tab="salary"] {
+    transform: translateX(200%);
+}
+
+/* Remove blue tap highlight */
+.ios-segment button,
+.ios-logout-btn,
+.ios-segment {
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Remove browser active/focus ring */
+.ios-segment button:focus,
+.ios-segment button:active {
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Ensure button doesn't flash blue on focus */
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}

@@ -23,17 +23,16 @@ export default function SuperAdminDashboard() {
             for (let d of snap.docs) {
                 const org = { id: d.id, ...d.data() };
 
-                // Fetch number of employees inside this org
                 const empSnap = await getDocs(
                     query(collection(db, "users"), where("orgId", "==", d.id))
                 );
 
                 org.employeeCount = empSnap.docs.length;
 
-                // Find admin of this org
                 const adminData = empSnap.docs.find(
                     (u) => u.data().role === "admin"
                 );
+
                 org.adminEmail = adminData ? adminData.data().email : "Not Assigned";
 
                 list.push(org);
@@ -46,45 +45,50 @@ export default function SuperAdminDashboard() {
     }, []);
 
     return (
-        <div className="sa-container">
+        <div className="ios-wrapper">
 
-            <div className="sa-header">
-                <h1>Organizations</h1>
+            {/* Header */}
+            <div className="ios-header">
+                <div className="title-wrap">
+                 <img src="https://img.icons8.com/glassmorphism/36/database.png" alt="organisations" />
+                <h1 className="ios-title">Organizations</h1>   
+                </div>
+                
+
                 <button
-                    className="sa-add-btn"
+                    className="ios-add-btn"
                     onClick={() => navigate("/superadmin/create-org")}
                 >
                     + Add Organization
                 </button>
             </div>
 
-            <div className="sa-table">
-                <div className="sa-table-header">
-                    <div>Organization</div>
-                    <div>Employees</div>
-                    <div>Admin Email</div>
-                    <div>Created</div>
-                    <div>Action</div>
-                </div>
-
+            {/* List */}
+            <div className="ios-list">
                 {orgs.map((org) => (
-                    <div key={org.id} className="sa-table-row">
-                        <div className="bold">{org.name}</div>
-                        <div>{org.employeeCount}</div>
-                        <div>{org.adminEmail}</div>
-                        <div>{new Date(org.createdAt?.seconds * 1000).toDateString()}</div>
-                        <div>
-                            <button
-                                className="sa-view-btn"
-                                onClick={() => navigate(`/superadmin/org/${org.id}`)}
-                            >
-                                View as Admin
-                            </button>
+                    <div
+                        key={org.id}
+                        className="ios-card"
+                        onClick={() => navigate(`/superadmin/org/${org.id}`)}
+                    >
+                        <div className="ios-card-left">
+                            
+                            <div className="ios-org-name">{org.name}</div>
+                            <div className="ios-org-sub">
+                                {org.employeeCount} employees • {org.adminEmail}
+                            </div>
+                        </div>
+
+                        <div className="ios-card-right">
+                            <div className="ios-date">
+                                {new Date(org.createdAt?.seconds * 1000).toLocaleDateString()}
+                            </div>
+
+                            <div className="ios-chevron">›</div>
                         </div>
                     </div>
                 ))}
             </div>
-
         </div>
     );
 }

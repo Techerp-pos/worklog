@@ -1,5 +1,8 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase/config";
+import FullPageLoader from "../components/FullPageLoader";
 
 export default function AuthGuard({ allowed }) {
     const [user, setUser] = useState(null);
@@ -7,40 +10,46 @@ export default function AuthGuard({ allowed }) {
     const location = useLocation();
 
     useEffect(() => {
-        const raw = localStorage.getItem("worklog_user");
+        // Wait for Firebase auth to confirm login state
+        const unsub = onAuthStateChanged(auth, () => {
+            setTimeout(() => {
+                const raw = localStorage.getItem("worklog_user");
 
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                setUser(parsed);
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        setUser(parsed);
+                    } catch {
+                        localStorage.removeItem("worklog_user");
+                    }
+                }
+
                 setLoaded(true);
-                return;
-            } catch {
-                localStorage.removeItem("worklog_user");
-            }
-        }
+            }, 50); // small delay prevents race-condition redirect
+        });
 
-        setLoaded(true);
+        return unsub;
     }, []);
 
-    // ----------------------------
-    // WAIT UNTIL USER IS LOADED
-    // ----------------------------
-    if (!loaded) return <div>Loading...</div>;
+    // --------------------------
+    // LOADING PHASE
+    // --------------------------
+    if (!loaded) return <FullPageLoader />;
 
-    // ----------------------------
-    // IF NOT LOGGED IN
-    // ----------------------------
+
+    // --------------------------
+    // NOT LOGGED IN
+    // --------------------------
     if (!user) {
-        // allow join-organization for new users
+        // allow join-organization
         if (location.pathname === "/join-organization") return <Outlet />;
 
         return <Navigate to="/" replace />;
     }
 
-    // -----------------------------------------
-    // SPECIAL CASE: employee WITHOUT org → must join org
-    // -----------------------------------------
+    // --------------------------
+    // EMPLOYEE WITHOUT ORG → must join org
+    // --------------------------
     if (user.role === "employee" && !user.orgId) {
         if (location.pathname !== "/join-organization") {
             return <Navigate to="/join-organization" replace />;
@@ -48,13 +57,25 @@ export default function AuthGuard({ allowed }) {
         return <Outlet />;
     }
 
-    // -----------------------------------------
-    // USER HAS ROLE BUT ACCESSING DISALLOWED ROUTES
-    // -----------------------------------------
+    // --------------------------
+    // ADMIN WITHOUT ORG → must complete setup
+    // --------------------------
+    if (user.role === "admin" && !user.orgId) {
+        if (location.pathname !== "/admin/setup") {
+            return <Navigate to="/admin/setup" replace />;
+        }
+        return <Outlet />;
+    }
+
+    // --------------------------
+    // ROLE NOT ALLOWED ON THIS ROUTE
+    // --------------------------
     if (!allowed.includes(user.role)) {
         return <Navigate to="/" replace />;
     }
 
-    // All good → allow route
+    // --------------------------
+    // ALL GOOD → allow access
+    // --------------------------
     return <Outlet />;
 }

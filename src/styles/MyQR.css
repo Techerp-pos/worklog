@@ -1,0 +1,36 @@
+.ios-card-qr {
+    background: white;
+    padding: 20px;
+    border-radius: 18px;
+    max-width: 360px;
+    margin: auto;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.qr-img {
+    width: 240px;
+    border-radius: 14px;
+    margin: 15px 0;
+}
+
+.mode-text {
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+
+.ios-btn-primary {
+    width: 100%;
+    padding: 12px 0;
+    border: none;
+    background: #007aff;
+    color: white;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.ios-btn-primary:hover {
+    background: #0062d6;
+}

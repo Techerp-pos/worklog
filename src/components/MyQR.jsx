@@ -3,13 +3,11 @@ import QRCode from "qrcode";
 import { auth, db } from "../firebase/config";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { v4 as uuid } from "uuid";
-import { Card, Button, Typography } from "antd";
-
-const { Title } = Typography;
+import "../styles/MyQR.css";
 
 export default function MyQR() {
     const [qrImage, setQrImage] = useState("");
-    const [mode, setMode] = useState("check-in"); // or "check-out"
+    const [mode, setMode] = useState("check-in");
     const [codes, setCodes] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -23,7 +21,6 @@ export default function MyQR() {
 
             let data;
 
-            // If QR doesn't exist, generate new codes
             if (!snap.exists()) {
                 data = {
                     uid,
@@ -45,44 +42,33 @@ export default function MyQR() {
 
     const generateQR = async (code) => {
         const img = await QRCode.toDataURL(code, {
-            width: 260,
+            width: 250,
             margin: 1,
         });
         setQrImage(img);
     };
 
     const switchMode = () => {
-        if (!codes) return;
-
         const newMode = mode === "check-in" ? "check-out" : "check-in";
         setMode(newMode);
 
-        generateQR(
-            newMode === "check-in"
-                ? codes.codeCheckIn
-                : codes.codeCheckOut
-        );
+        generateQR(newMode === "check-in" ? codes.codeCheckIn : codes.codeCheckOut);
     };
 
-    if (loading) return <p>Loading QR...</p>;
+    if (loading) return <p>Loading QR…</p>;
 
     return (
-        <Card style={{ textAlign: "center", width: 340, margin: "auto" }}>
-            <Title level={4}>My Attendance QR</Title>
+        <div className="ios-card-qr">
+            <h2>My Attendance QR</h2>
+            <img src={qrImage} alt="QR" className="qr-img" />
 
-            <img
-                src={qrImage}
-                alt="Employee QR"
-                style={{ width: 240, borderRadius: 10, marginBottom: 10 }}
-            />
-
-            <p style={{ marginBottom: 20 }}>
-                <strong>Current Mode:</strong> {mode.toUpperCase()}
+            <p className="mode-text">
+                <b>Mode:</b> {mode.toUpperCase()}
             </p>
 
-            <Button type="primary" onClick={switchMode}>
+            <button className="ios-btn-primary" onClick={switchMode}>
                 Switch to {mode === "check-in" ? "Check-Out QR" : "Check-In QR"}
-            </Button>
-        </Card>
+            </button>
+        </div>
     );
 }

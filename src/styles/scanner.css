@@ -1,76 +1,92 @@
-/* Color Palette: 
-   Primary Dark: #121212
-   Surface Color: #2C2C2C
-   Accent Yellow: #FFD700 (or slightly more vibrant #FEC73F from search results)
-   Text Color: #E0E0E0 
-*/
+/* ============================================================
+   iOS 17 / VisionOS Inspired UI
+   Smooth blur, soft gradients, depth shadows, rounded corners
+   ============================================================ */
 
-/* General Page Layout */
+/* GLOBAL THEME */
+:root {
+    --primary-dark: #0c0c0c;
+    --surface: rgba(40, 40, 40, 0.65);
+    --accent: #FFD700;
+    --text: #EAEAEA;
+}
+
+/* PAGE WRAPPER */
 .scanner-page {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #121212;
-    /* Deep dark background */
-    padding: 20px;
-    font-family: sans-serif;
-    color: #E0E0E0;
+    background: var(--primary-dark);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+        "SF Pro Text", sans-serif;
+    color: var(--text);
 }
 
-/* Main Card Container */
+/* iOS Floating Card */
 .scanner-card {
-    background: #2C2C2C;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    background: var(--surface);
+    padding: 28px;
+    border-radius: 20px;
+    box-shadow: 0px 20px 40px rgba(0, 0, 0, 0.55);
     text-align: center;
-    max-width: 400px;
+    max-width: 420px;
     width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: 0.25s ease;
 }
 
 .scanner-title {
-    margin-bottom: 25px;
-    color: #FFD700;
-    /* Yellow accent color */
-    font-size: 1.6rem;
+    margin-bottom: 20px;
+    color: var(--accent);
+    font-size: 1.55rem;
     font-weight: 600;
+    letter-spacing: -0.5px;
 }
 
-/* Camera Frame/Container */
-.camera-frame {
+/* CAMERA WRAPPER */
+.camera-wrapper {
     position: relative;
     width: 100%;
     aspect-ratio: 1 / 1;
-    /* Square aspect ratio like the image */
-    background-color: #000;
-    border-radius: 8px;
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 0 0 4px #444;
-    /* Subtle border */
+
+    /* iOS glass border */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 15, 15, 0.8);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
 }
 
-/* Video Element Styles (Ensures no mirror effect) */
+/* VIDEO FEED */
 .cameraView {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: none;
-    /* Crucial for correct orientation */
 }
 
-/* Overlay for scanner lines/guides */
+/* iOS Style Scanner Glow */
+.scan-highlight {
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    border-radius: 20px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+/* Animated scan line */
 .scanner-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 2px solid rgba(255, 215, 0, 0.5);
-    /* Semi-transparent yellow border */
-    /* Adds the scanning animation line */
-    background: linear-gradient(to bottom, transparent 45%, #FFD700 50%, transparent 55%) no-repeat;
-    background-size: 100% 4px;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+            transparent 45%,
+            var(--accent) 50%,
+            transparent 55%) no-repeat;
+    background-size: 100% 5px;
     animation: scan 2.5s infinite linear;
 }
 
@@ -84,82 +100,90 @@
     }
 }
 
-/* Success Box Styles */
-.success-box {
-    padding: 40px 20px;
-    background-color: #4CAF501A;
-    /* Very subtle green tint on dark background */
-    border: 1px solid #4CAF50;
-    border-radius: 8px;
-    animation: fadeIn 0.5s;
-}
-
-.success-icon {
-    font-size: 3rem;
-    color: #4caf50;
-    margin-bottom: 15px;
-    border: 3px solid #4caf50;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto 15px;
-}
-
-.success-title {
-    color: #E0E0E0;
-    margin-bottom: 5px;
-}
-
-.emp-name {
-    font-weight: bold;
-    color: #FFD700;
-    margin-bottom: 15px;
-}
-
-.auto-reset {
-    color: #AAA;
-    font-size: 0.9rem;
-}
-
-/* Hint/Status Text */
-.scan-hint {
-    margin-top: 20px;
-    color: #AAA;
-    font-weight: 400;
-    font-size: 0.9rem;
-}
-
-.scan-hint.error {
-    color: #d9534f;
-    /* Red color for errors */
-}
-
-/* Loading Indicator */
-.loading-indicator {
+/* SUCCESS OVERLAY */
+.success-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     display: flex;
-    justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.9);
-    color: white;
-    z-index: 10;
+    justify-content: center;
+    z-index: 30;
 }
 
-@keyframes fadeIn {
+/* SUCCESS POPUP */
+.success-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    padding: 28px;
+    border-radius: 20px;
+    text-align: center;
+    width: 80%;
+    animation: popIn 0.35s ease-out;
+    color: var(--text);
+    box-shadow: 0px 20px 45px rgba(0, 0, 0, 0.6);
+    display: flex;
+    gap: 40px;
+}
+
+@keyframes popIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: scale(0.85) translateY(10px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: scale(1) translateY(0);
     }
+}
+
+/* Check Icon */
+.success-icon {
+    font-size: 3rem;
+    color: #4caf50;
+    margin-bottom: 10px;
+    border: 3px solid #4caf50;
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    /* iOS glow */
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+}
+
+.emp-name {
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 6px;
+}
+
+/* Status/Hint Text */
+.scan-hint {
+    margin-top: 14px;
+    color: #aaa;
+    font-size: 0.95rem;
+}
+
+.scan-hint.error {
+    color: #ff6b6b;
+}
+
+/* Loading overlay */
+.loading-indicator {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 50;
+    color: white;
 }

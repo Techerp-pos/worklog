@@ -1,0 +1,92 @@
+/* Wrapper */
+.ios-attendance-wrapper {
+    padding: 10px 5px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+}
+
+/* No records text */
+.no-records {
+    text-align: center;
+    margin-top: 20px;
+    color: #777;
+    font-size: 14px;
+}
+
+/* iOS attendance card */
+.ios-attendance-card {
+    background: white;
+    padding: 16px 18px;
+    border-radius: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    transition: transform 0.15s ease;
+}
+
+.ios-attendance-card:hover {
+    transform: translateY(-3px);
+}
+
+/* Top row: date + status */
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.date {
+    font-size: 16px;
+    font-weight: 600;
+    color: #222;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Time row (Check-In / Check-Out) */
+.time-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+}
+
+.time-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-size: 12px;
+    color: #777;
+}
+
+.value {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+/* Footer row (worked + OT badge) */
+.footer-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    align-items: center;
+}
+
+.worked {
+    font-size: 14px;
+    color: #444;
+}
+
+.ot-badge {
+    padding: 4px 10px;
+    background: #ede1ff;
+    color: #6a1b9a;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+}

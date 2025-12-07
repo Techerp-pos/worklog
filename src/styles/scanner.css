@@ -1,143 +1,158 @@
-/* ==========================================================
-   SCANNER PAGE
-========================================================== */
+/* Color Palette: 
+   Primary Dark: #121212
+   Surface Color: #2C2C2C
+   Accent Yellow: #FFD700 (or slightly more vibrant #FEC73F from search results)
+   Text Color: #E0E0E0 
+*/
+
+/* General Page Layout */
 .scanner-page {
-    width: 100%;
-    min-height: 100vh;
-    background: #f5f7fa;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #121212;
+    /* Deep dark background */
     padding: 20px;
+    font-family: sans-serif;
+    color: #E0E0E0;
 }
 
-/* Card */
+/* Main Card Container */
 .scanner-card {
-    width: 100%;
-    max-width: 420px;
-    background: white;
-    padding: 20px 24px;
-    border-radius: 18px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    background: #2C2C2C;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
     text-align: center;
-}
-
-/* ============================
-   CAMERA FRAME
-============================ */
-.camera-frame {
+    max-width: 400px;
     width: 100%;
-    height: 330px;
-    background: #000;
-    border-radius: 14px;
-    overflow: hidden;
-    position: relative;
 }
 
-.cameraView,
-.frozen-frame {
+.scanner-title {
+    margin-bottom: 25px;
+    color: #FFD700;
+    /* Yellow accent color */
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+/* Camera Frame/Container */
+.camera-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    /* Square aspect ratio like the image */
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 0 4px #444;
+    /* Subtle border */
+}
+
+/* Video Element Styles (Ensures no mirror effect) */
+.cameraView {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transform: none;
+    /* Crucial for correct orientation */
 }
 
-/* ============================
-   iOS Scan Overlay
-============================ */
-.scan-overlay {
+/* Overlay for scanner lines/guides */
+.scanner-overlay {
     position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    /* Semi-transparent yellow border */
+    /* Adds the scanning animation line */
+    background: linear-gradient(to bottom, transparent 45%, #FFD700 50%, transparent 55%) no-repeat;
+    background-size: 100% 4px;
+    animation: scan 2.5s infinite linear;
 }
 
-.scan-box {
-    width: 250px;
-    height: 250px;
-    border-radius: 18px;
-    position: relative;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
-    clip-path: inset(0 round 18px);
-}
-
-.corner {
-    position: absolute;
-    width: 38px;
-    height: 38px;
-    border: 4px solid #fff;
-    border-radius: 10px;
-    animation: glow 2s infinite ease-in-out;
-}
-
-.corner.tl {
-    top: -3px;
-    left: -3px;
-    border-right: none;
-    border-bottom: none;
-}
-
-.corner.tr {
-    top: -3px;
-    right: -3px;
-    border-left: none;
-    border-bottom: none;
-}
-
-.corner.bl {
-    bottom: -3px;
-    left: -3px;
-    border-right: none;
-    border-top: none;
-}
-
-.corner.br {
-    bottom: -3px;
-    right: -3px;
-    border-left: none;
-    border-top: none;
-}
-
-@keyframes glow {
+@keyframes scan {
     0% {
-        opacity: 0.3;
-    }
-
-    50% {
-        opacity: 1;
+        background-position: 0% 0%;
     }
 
     100% {
-        opacity: 0.3;
+        background-position: 0% 100%;
     }
 }
 
-/* ============================
-   SUCCESS BOX
-============================ */
+/* Success Box Styles */
 .success-box {
-    margin-top: 12px;
-    background: #e7fbe9;
-    padding: 18px;
-    border-radius: 16px;
-    animation: successFade .3s ease;
+    padding: 40px 20px;
+    background-color: #4CAF501A;
+    /* Very subtle green tint on dark background */
+    border: 1px solid #4CAF50;
+    border-radius: 8px;
+    animation: fadeIn 0.5s;
 }
 
 .success-icon {
+    font-size: 3rem;
+    color: #4caf50;
+    margin-bottom: 15px;
+    border: 3px solid #4caf50;
+    border-radius: 50%;
     width: 60px;
     height: 60px;
-    background: #2ecc71;
-    border-radius: 50%;
-    color: white;
-    font-size: 32px;
-    font-weight: bold;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    margin: 0 auto 15px;
 }
 
-@keyframes successFade {
+.success-title {
+    color: #E0E0E0;
+    margin-bottom: 5px;
+}
+
+.emp-name {
+    font-weight: bold;
+    color: #FFD700;
+    margin-bottom: 15px;
+}
+
+.auto-reset {
+    color: #AAA;
+    font-size: 0.9rem;
+}
+
+/* Hint/Status Text */
+.scan-hint {
+    margin-top: 20px;
+    color: #AAA;
+    font-weight: 400;
+    font-size: 0.9rem;
+}
+
+.scan-hint.error {
+    color: #d9534f;
+    /* Red color for errors */
+}
+
+/* Loading Indicator */
+.loading-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    z-index: 10;
+}
+
+@keyframes fadeIn {
     from {
         opacity: 0;
         transform: translateY(10px);

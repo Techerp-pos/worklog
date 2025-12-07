@@ -22,17 +22,17 @@ export default function EmployeeForm({ data, close }) {
             form.setFieldsValue({
                 name: data.name,
                 email: data.email,
-                baseSalary: data.baseSalary,
+                salaryBase: data.salaryBase,
                 allowedLeavesPerMonth: data.allowedLeavesPerMonth ?? 4,
                 shiftHoursPerDay: data.shiftHoursPerDay ?? 10,
             });
 
-            calculateDerived(data.baseSalary);
+            calculateDerived(data.salaryBase);
         } else {
             form.setFieldsValue({
                 name: "",
                 email: "",
-                baseSalary: 0,
+                salaryBase: 0,
                 allowedLeavesPerMonth: 4,
                 shiftHoursPerDay: 10,
             });
@@ -44,8 +44,8 @@ export default function EmployeeForm({ data, close }) {
     // ---------------------------------------------------
     // CALCULATE HOURLY + MINUTE PAY
     // ---------------------------------------------------
-    const calculateDerived = (baseSalary) => {
-        const hourly = baseSalary / 300;
+    const calculateDerived = (salaryBase) => {
+        const hourly = salaryBase / 300;
         const minute = hourly / 60;
 
         setHourlyPay(Number(hourly.toFixed(3)));
@@ -73,7 +73,7 @@ export default function EmployeeForm({ data, close }) {
                 email,
                 role: "employee",
                 orgId,
-                baseSalary: Number(values.baseSalary || 0),
+                salaryBase: Number(values.salaryBase || 0),
                 allowedLeavesPerMonth: Number(values.allowedLeavesPerMonth || 0),
                 shiftHoursPerDay: Number(values.shiftHoursPerDay || 0),
                 hourlyPay: hourlyPay,
@@ -151,7 +151,7 @@ export default function EmployeeForm({ data, close }) {
                 Salary & Work Info
             </Divider>
 
-            <Form.Item name="baseSalary" label="Base Salary (OMR)">
+            <Form.Item name="salaryBase" label="Base Salary (OMR)">
                 <InputNumber
                     min={0}
                     precision={3}

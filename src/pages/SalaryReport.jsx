@@ -105,14 +105,14 @@ export default function SalaryReport() {
         const hourRate = emp.salaryBase / (daysInMonth * 10); // 10 hr shift assumption
         const minuteRate = hourRate / 60;
 
-        overtimePay = (totalOvertimeMinutes * minuteRate).toFixed(3);
+        overtimePay = (totalOvertimeMinutes * minuteRate)?.toFixed(3);
 
         const finalSalary = (
             emp.salaryBase -
             leaveDeduction +
             extraBonus +
             Number(overtimePay)
-        ).toFixed(3);
+        )?.toFixed(3);
 
         // Build report
         setReport({
@@ -122,13 +122,13 @@ export default function SalaryReport() {
             actualLeaves,
             allowedLeaves,
             excessLeaves,
-            leaveDeduction: leaveDeduction.toFixed(3),
+            leaveDeduction: leaveDeduction?.toFixed(3),
             extraWorkingDays,
-            extraBonus: extraBonus.toFixed(3),
-            workedHours: (totalWorkedMinutes / 60).toFixed(2),
+            extraBonus: extraBonus?.toFixed(3),
+            workedHours: (totalWorkedMinutes / 60)?.toFixed(2),
             overtimeMinutes: totalOvertimeMinutes,
             overtimePay,
-            salaryBase: emp.salaryBase.toFixed(3),
+            salaryBase: emp.salaryBase?.toFixed(3),
             finalSalary,
         });
     };

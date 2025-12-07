@@ -1,23 +1,16 @@
-// ======================================================
-// FAST SCANNER WITH DAILY + MONTHLY UPDATE + OT ENGINE
-// ======================================================
-
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
 import { Alert } from "antd";
 import dayjs from "dayjs";
-
-import { db } from "../firebase/config";
 import {
     collection,
-    getDocs,
     doc,
     getDoc,
-    setDoc,
+    getDocs,
     serverTimestamp,
+    setDoc,
 } from "firebase/firestore";
-
-import "../styles/scanner.css";
+import { db } from "../firebase/config";
 import { calculateOvertimePay } from "../utils/calcOvertime";
 import { updateMonthlySummary } from "../utils/updateMonthlySummary";
 
@@ -25,21 +18,22 @@ QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 
 export default function AttendanceScanner() {
     const videoRef = useRef(null);
+    const scannerRef = useRef(null);
+    const lock = useRef(false);
+
     const qrCache = useRef({});
     const userCache = useRef({});
     const beepRef = useRef(null);
 
+    const [frozenFrame, setFrozenFrame] = useState(null);
     const [status, setStatus] = useState("loading");
     const [employee, setEmployee] = useState(null);
     const [scanType, setScanType] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
 
-    const lock = useRef(false);
-    const lastScan = useRef(0);
-
-    // ----------------------------------------------------
+    // --------------------------------------------------------
     // PRELOAD QR CODES
-    // ----------------------------------------------------
+    // --------------------------------------------------------
     useEffect(() => {
         getDocs(collection(db, "qrCodes")).then((snap) => {
             const map = {};
@@ -52,39 +46,92 @@ export default function AttendanceScanner() {
         });
     }, []);
 
-    // ----------------------------------------------------
-    // PRELOAD SOUND
-    // ----------------------------------------------------
+    // --------------------------------------------------------
+    // PRELOAD BEEP SOUND
+    // --------------------------------------------------------
     useEffect(() => {
         beepRef.current = new Audio("/sound/beep.mp3");
         beepRef.current.load();
     }, []);
 
-    // ----------------------------------------------------
-    // HANDLE SCAN RESULT
-    // ----------------------------------------------------
-    const handleQR = useCallback(async (code) => {
+    // --------------------------------------------------------
+    // START SCANNER ONCE
+    // --------------------------------------------------------
+    useEffect(() => {
+        if (!videoRef.current) return;
+
+        const scanner = new QrScanner(
+            videoRef.current,
+            (res) => onScan(res.data),
+            {
+                preferredCamera: "environment",
+                highlightScanRegion: true,
+            }
+        );
+
+        scannerRef.current = scanner;
+        scanner.start().catch((err) => console.log("Camera error:", err));
+        setStatus("scanning");
+
+        return () => scanner.stop();
+    }, []);
+
+    // --------------------------------------------------------
+    // HANDLE QR SCAN
+    // --------------------------------------------------------
+    const onScan = async (code) => {
         if (lock.current) return;
         lock.current = true;
 
-        setTimeout(() => (lock.current = false), 600);
+        const scanner = scannerRef.current;
+        if (scanner) scanner.stop();
 
-        if (Date.now() - lastScan.current < 300) return;
-        lastScan.current = Date.now();
+        freezeCameraFrame();
 
         setStatus("verifying");
 
         const hit = qrCache.current[code];
         if (!hit) {
             setErrorMsg("Invalid QR Code");
-            setStatus("scanning");
-            setTimeout(() => setErrorMsg(null), 1500);
+            setTimeout(() => {
+                cleanupAndRestart();
+            }, 1200);
             return;
         }
 
-        const { uid, type } = hit;
+        await processAttendance(hit);
 
-        // Load employee (cached)
+        if (beepRef.current) {
+            beepRef.current.currentTime = 0;
+            beepRef.current.play().catch(() => { });
+        }
+
+        setStatus("success");
+
+        setTimeout(() => {
+            cleanupAndRestart();
+        }, 800);
+    };
+
+    // --------------------------------------------------------
+    // FREEZE CAMERA FRAME
+    // --------------------------------------------------------
+    const freezeCameraFrame = () => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+
+        setFrozenFrame(canvas.toDataURL("image/png"));
+    };
+
+    // --------------------------------------------------------
+    // PROCESS ATTENDANCE
+    // --------------------------------------------------------
+    const processAttendance = async ({ uid, type }) => {
         let user = userCache.current[uid];
         if (!user) {
             const snap = await getDoc(doc(db, "users", uid));
@@ -95,12 +142,9 @@ export default function AttendanceScanner() {
         const today = dayjs().format("YYYY-MM-DD");
         const ref = doc(db, "attendance", uid, "days", today);
 
-        const todaySnap = await getDoc(ref);
-        const record = todaySnap.exists() ? todaySnap.data() : {};
+        const snap = await getDoc(ref);
+        const rec = snap.exists() ? snap.data() : {};
 
-        // ----------------------------------------------------
-        // CHECK-IN
-        // ----------------------------------------------------
         if (type === "Check-In") {
             await setDoc(
                 ref,
@@ -108,55 +152,42 @@ export default function AttendanceScanner() {
                     uid,
                     employeeName: user.name,
                     date: today,
-                    checkIn: record.checkIn || serverTimestamp(),
+                    checkIn: rec.checkIn || serverTimestamp(),
                 },
                 { merge: true }
             );
         }
 
-        // ----------------------------------------------------
-        // CHECK-OUT
-        // ----------------------------------------------------
         if (type === "Check-Out") {
             const now = new Date();
-
             let workedMinutes = 0;
             let overtimeMinutes = 0;
             let overtimePay = 0;
 
-            if (record.checkIn?.toDate) {
-                const checkInDT = record.checkIn.toDate();
-                workedMinutes = Math.floor((now - checkInDT) / 1000 / 60);
+            if (rec.checkIn?.toDate) {
+                const checkIn = rec.checkIn.toDate();
+                workedMinutes = Math.floor((now - checkIn) / 1000 / 60);
 
-                // Shift end time
-                const endTime = dayjs(today + " " + user.workEndTime, "YYYY-MM-DD HH:mm");
+                const shiftEnd = dayjs(today + " " + user.workEndTime);
                 const actual = dayjs(now);
 
-                if (actual.isAfter(endTime)) {
-                    overtimeMinutes = actual.diff(endTime, "minute");
+                if (actual.isAfter(shiftEnd)) {
+                    overtimeMinutes = actual.diff(shiftEnd, "minute");
 
-                    // OT Slab Engine
-                    const { overtimePay: otPay } = calculateOvertimePay(
+                    const { overtimePay: otResult } = calculateOvertimePay(
                         overtimeMinutes,
                         user.overtimeSlabs || []
                     );
-
-                    overtimePay = otPay;
+                    overtimePay = otResult;
                 }
             }
 
             await setDoc(
                 ref,
-                {
-                    checkOut: serverTimestamp(),
-                    workedMinutes,
-                    overtimeMinutes,
-                    overtimePay,
-                },
+                { checkOut: serverTimestamp(), workedMinutes, overtimeMinutes, overtimePay },
                 { merge: true }
             );
 
-            // UPDATE MONTH SUMMARY
             await updateMonthlySummary(db, uid, {
                 date: today,
                 workedMinutes,
@@ -165,44 +196,22 @@ export default function AttendanceScanner() {
             });
         }
 
-        // Play sound
-        if (beepRef.current) {
-            beepRef.current.currentTime = 0;
-            beepRef.current.play().catch(() => { });
-        }
-
         setEmployee(user);
         setScanType(type);
-        setStatus("success");
+    };
 
-        setTimeout(() => setStatus("scanning"), 900);
-    }, []);
-
-    // ----------------------------------------------------
-    // START SCANNER
-    // ----------------------------------------------------
-    useEffect(() => {
-        if (!videoRef.current) return;
-
-        const scanner = new QrScanner(
-            videoRef.current,
-            (result) => handleQR(result.data),
-            {
-                preferredCamera: "environment",
-                highlightScanRegion: true,
-                highlightCodeOutline: true,
-            }
-        );
-
-        scanner.start();
+    // --------------------------------------------------------
+    // CLEANUP & RESTART CAMERA
+    // --------------------------------------------------------
+    const cleanupAndRestart = () => {
+        setFrozenFrame(null);
+        setErrorMsg(null);
+        lock.current = false;
         setStatus("scanning");
 
-        return () => scanner.stop();
-    }, [handleQR]);
+        scannerRef.current?.start();
+    };
 
-    // ----------------------------------------------------
-    // UI
-    // ----------------------------------------------------
     return (
         <div className="scanner-page">
             <div className="scanner-card">
@@ -210,16 +219,14 @@ export default function AttendanceScanner() {
 
                 {errorMsg && <Alert type="error" message={errorMsg} showIcon />}
 
-                {/* Camera */}
-                <div
-                    className="camera-frame"
-                    style={{ display: status === "success" ? "none" : "block" }}
-                >
-                    <video ref={videoRef} className="cameraView" />
-                    <div className="scan-highlight"></div>
+                <div className="camera-frame">
+                    {frozenFrame ? (
+                        <img src={frozenFrame} className="frozen-frame" />
+                    ) : (
+                        <video ref={videoRef} className="cameraView" />
+                    )}
                 </div>
 
-                {/* SUCCESS */}
                 {status === "success" && (
                     <div className="success-box">
                         <div className="success-icon">✔</div>

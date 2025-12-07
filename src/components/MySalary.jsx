@@ -1,59 +1,184 @@
 import { useEffect, useState } from "react";
+import { Card, DatePicker, Skeleton } from "antd";
 import { db, auth } from "../firebase/config";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { DatePicker, Card } from "antd";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import dayjs from "dayjs";
+import "../styles/Salary.css";
 
 const { MonthPicker } = DatePicker;
 
 export default function MySalary() {
     const [month, setMonth] = useState(dayjs());
     const [salary, setSalary] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    const loadSalary = async () => {
-        const uid = auth.currentUser.uid;
+    const loadMySalary = async () => {
+        setLoading(true);
+        const user = auth.currentUser;
+        if (!user) return;
 
-        const start = month.startOf("month").toDate();
-        const end = month.endOf("month").toDate();
+        const uid = user.uid;
 
-        const q = query(
-            collection(db, "attendance"),
-            where("uid", "==", uid),
-            where("checkIn", ">=", start),
-            where("checkIn", "<=", end)
-        );
+        // Fetch user profile
+        const snapUser = await getDoc(doc(db, "users", uid));
+        const emp = snapUser.data();
 
-        const snap = await getDocs(q);
+        const baseSalary = emp.salaryBase || 0;
+        const allowedLeaves = emp.allowedLeavesPerMonth || 0;
 
-        let overtimePay = 0;
+        // Fetch attendance
+        const baseRef = collection(db, "attendance", uid, "days");
+        const snap = await getDocs(baseRef);
+
+        const daysInMonth = month.daysInMonth();
+        let attendanceDays = 0;
+        let workMin = 0;
+        let totalOT = 0;
+
         snap.forEach((d) => {
-            overtimePay += d.data().overtimePay || 0;
+            const att = d.data();
+            const day = d.id;
+            const attDate = dayjs(day);
+
+            if (!attDate.isSame(month, "month")) return;
+
+            attendanceDays++;
+            workMin += att.workedMinutes || 0;
+            totalOT += att.overtimeMinutes || 0;
         });
 
-        const userDoc = await getDocs(query(collection(db, "users"), where("uid", "==", uid)));
-        const user = userDoc.docs[0].data();
+        // Salary Logic
+        const actualLeaves = daysInMonth - attendanceDays;
+        const excessLeaves = Math.max(0, actualLeaves - allowedLeaves);
+
+        const perDay = baseSalary / daysInMonth;
+        const leaveDeduction = excessLeaves * perDay;
+
+        const extraDays = Math.max(0, attendanceDays - (daysInMonth - allowedLeaves));
+        const extraBonus = extraDays * perDay;
+
+        const hourRate = baseSalary / (daysInMonth * 10);
+        const minuteRate = hourRate / 60;
+        const overtimePay = totalOT * minuteRate;
+
+        const finalSalary =
+            baseSalary - leaveDeduction + extraBonus + overtimePay;
 
         setSalary({
-            base: user.salaryBase,
-            overtime: Number(overtimePay.toFixed(3)),
-            total: Number((user.salaryBase + overtimePay).toFixed(3)),
+            month: month.format("MMMM YYYY"),
+            baseSalary,
+            attendanceDays,
+            daysInMonth,
+            actualLeaves,
+            allowedLeaves,
+            excessLeaves,
+            leaveDeduction: leaveDeduction.toFixed(3),
+            extraDays,
+            extraBonus: extraBonus.toFixed(3),
+            workedHours: (workMin / 60).toFixed(2),
+            overtimeMinutes: totalOT,
+            overtimePay: overtimePay.toFixed(3),
+            finalSalary: finalSalary.toFixed(3),
         });
+
+        setLoading(false);
     };
 
     useEffect(() => {
-        loadSalary();
+        loadMySalary();
     }, [month]);
 
     return (
-        <div>
-            <MonthPicker value={month} onChange={setMonth} />
+        <div className="ios-salary-page">
 
-            {salary && (
-                <Card style={{ marginTop: 20 }}>
-                    <p><b>Base Salary:</b> {salary.base} OMR</p>
-                    <p><b>Overtime:</b> {salary.overtime} OMR</p>
-                    <p><b>Total Salary:</b> {salary.total} OMR</p>
-                </Card>
+            <div className="ios-salary-header">
+                <h2>My Salary</h2>
+                <p>{salary?.month}</p>
+            </div>
+
+            <MonthPicker
+                value={month}
+                onChange={setMonth}
+                className="ios-month-picker"
+            />
+
+            {loading ? (
+                <Skeleton active paragraph={{ rows: 10 }} />
+            ) : salary ? (
+                <div className="ios-salary-card">
+
+                    {/* TOTAL */}
+                    <div className="ios-total-box">
+                        <span>Total Salary</span>
+                        <h1>{salary.finalSalary} OMR</h1>
+                    </div>
+
+                    {/* SECTIONS */}
+                    <div className="ios-section">
+                        <h3>Earnings</h3>
+
+                        <div className="ios-row">
+                            <span>Base Salary</span>
+                            <b>{salary.baseSalary} OMR</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Extra Bonus</span>
+                            <b>{salary.extraBonus} OMR</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Overtime Pay</span>
+                            <b>{salary.overtimePay} OMR</b>
+                        </div>
+                    </div>
+
+                    <div className="ios-section">
+                        <h3>Deductions</h3>
+
+                        <div className="ios-row">
+                            <span>Excess Leaves</span>
+                            <b>{salary.excessLeaves}</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Leave Deduction</span>
+                            <b>{salary.leaveDeduction} OMR</b>
+                        </div>
+                    </div>
+
+                    <div className="ios-section">
+                        <h3>Attendance Summary</h3>
+
+                        <div className="ios-row">
+                            <span>Present Days</span>
+                            <b>{salary.attendanceDays}/{salary.daysInMonth}</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Worked Hours</span>
+                            <b>{salary.workedHours}</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Overtime Minutes</span>
+                            <b>{salary.overtimeMinutes}</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Allowed Leaves</span>
+                            <b>{salary.allowedLeaves}</b>
+                        </div>
+
+                        <div className="ios-row">
+                            <span>Taken Leaves</span>
+                            <b>{salary.actualLeaves}</b>
+                        </div>
+
+                    </div>
+                </div>
+            ) : (
+                <p>No salary data available.</p>
             )}
         </div>
     );

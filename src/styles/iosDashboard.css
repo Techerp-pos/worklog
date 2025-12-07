@@ -1,0 +1,75 @@
+/* ===========================================
+   iOS / VisionOS Style Dashboard UI
+   =========================================== */
+
+.dashboard-wrapper {
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    background: #f5f5f7;
+    min-height: 100vh;
+}
+
+/* Glass Cards */
+.dashboard-card {
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-radius: 20px !important;
+    border: 1px solid rgba(255,255,255,0.45);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+/* Org Card */
+.ios-org-card {
+    padding: 20px 25px !important;
+    border-left: 5px solid #ff8e31;
+}
+
+/* Stat cards */
+.ios-stat-card .ant-card-body {
+    padding: 20px;
+}
+
+.ios-stat-card .ant-statistic-title {
+    color: #666 !important;
+    font-size: 0.85rem;
+}
+
+.ios-stat-card .ant-statistic-content {
+    color: #111 !important;
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+/* List Cards */
+.ios-list-card .ant-card-head {
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(200,200,200,0.35);
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+/* iOS Logout Button */
+.ios-logout-btn {
+    background: #ff3b30 !important;
+    border-radius: 12px !important;
+    padding: 8px 20px !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    box-shadow: 0 5px 12px rgba(255,59,48,0.25);
+}
+
+.ios-logout-btn:hover {
+    opacity: 0.9;
+}
+
+/* iOS modal rounding */
+.ant-modal-content {
+    border-radius: 16px !important;
+}
+
+.ant-modal-header {
+    border-radius: 16px 16px 0 0 !important;
+}

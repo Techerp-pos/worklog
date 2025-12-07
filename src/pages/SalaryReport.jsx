@@ -1,20 +1,66 @@
 import { useEffect, useState } from "react";
-import { Card, DatePicker, Table, Select } from "antd";
+import {
+    Card,
+    DatePicker,
+    Table,
+    Select,
+    Input,
+    Button,
+    Space,
+    Skeleton,
+    Grid
+} from "antd";
+
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { db } from "../firebase/config";
 import { collection, getDocs } from "firebase/firestore";
 import dayjs from "dayjs";
 
 const { MonthPicker } = DatePicker;
+const { Search } = Input;
+const { useBreakpoint } = Grid;
 
 export default function SalaryReport() {
-    const [employees, setEmployees] = useState([]);
-    const [selectedEmp, setSelectedEmp] = useState(null);
-    const [month, setMonth] = useState(dayjs());
-    const [report, setReport] = useState(null);
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
 
-    // ------------------------------------------------------------------
-    // LOAD ALL EMPLOYEES
-    // ------------------------------------------------------------------
+    const [employees, setEmployees] = useState([]);
+    const [month, setMonth] = useState(dayjs());
+    const [reports, setReports] = useState([]);
+
+    const [search, setSearch] = useState("");
+
+    const defaultFilters = {
+        minAttendance: null,
+        maxLeaves: null,
+        otMin: null,
+        sortBy: null,
+    };
+
+    const [filters, setFilters] = useState(defaultFilters);
+    const [prevFilters, setPrevFilters] = useState(defaultFilters);
+
+    const [loading, setLoading] = useState(true);
+
+    // Update filter with undo snapshot
+    const updateFilters = (key, value) => {
+        setPrevFilters(filters);
+        setFilters((f) => ({ ...f, [key]: value }));
+    };
+
+    const resetFilters = () => {
+        setPrevFilters(filters);
+        setFilters(defaultFilters);
+    };
+
+    const undoFilters = () => {
+        const temp = filters;
+        setFilters(prevFilters);
+        setPrevFilters(temp);
+    };
+
+    // Load employees
     useEffect(() => {
         loadEmployees();
     }, []);
@@ -25,174 +71,379 @@ export default function SalaryReport() {
 
         snap.forEach((d) => {
             const user = d.data();
-            if (user.role === "employee") {
-                arr.push({ id: d.id, ...user });
-            }
+            if (user.role === "employee") arr.push({ id: d.id, ...user });
         });
 
         setEmployees(arr);
     };
 
-    // ------------------------------------------------------------------
-    // LOAD MONTHLY REPORT
-    // ------------------------------------------------------------------
-    const loadReport = async () => {
-        if (!selectedEmp) return;
+    // Load reports when employees or month changes
+    useEffect(() => {
+        if (employees.length > 0) loadAllReports();
+    }, [employees, month]);
 
-        const emp = employees.find((e) => e.id === selectedEmp);
-        if (!emp) return;
+    // LOAD salary report for every employee
+    const loadAllReports = async () => {
+        setLoading(true);
 
-        const daysInMonth = month.daysInMonth();
-        let attendanceData = [];
+        const results = [];
 
-        // Loop through uid -> attendance -> days subcollections
-        const baseRef = collection(db, "attendance", selectedEmp, "days");
-        const snap = await getDocs(baseRef);
+        for (let emp of employees) {
+            const baseRef = collection(db, "attendance", emp.id, "days");
+            const snap = await getDocs(baseRef);
 
-        snap.forEach((d) => {
-            const att = d.data();
-            const day = d.id; // YYYY-MM-DD
+            const daysInMonth = month.daysInMonth();
+            let attendanceDays = 0;
+            let totalWorkedMinutes = 0;
+            let totalOT = 0;
 
-            const attDate = dayjs(day, "YYYY-MM-DD");
-            if (attDate.isSame(month, "month")) {
-                attendanceData.push({
-                    ...att,
-                    date: attDate,
-                });
-            }
-        });
+            snap.forEach((d) => {
+                const att = d.data();
+                const day = d.id;
+                const attDate = dayjs(day);
 
-        let totalWorkedMinutes = 0;
-        let totalOvertimeMinutes = 0;
-        let overtimePay = 0;
-        let attendanceDays = 0;
+                if (!attDate.isSame(month, "month")) return;
 
-        attendanceData.forEach((att) => {
-            totalWorkedMinutes += att.workedMinutes || 0;
-            totalOvertimeMinutes += att.overtimeMinutes || 0;
+                attendanceDays++;
+                totalWorkedMinutes += att.workedMinutes || 0;
+                totalOT += att.overtimeMinutes || 0;
+            });
 
-            if (att.workedMinutes > 0) attendanceDays++;
-        });
+            const allowedLeaves = emp.allowedLeavesPerMonth || 0;
+            const actualLeaves = daysInMonth - attendanceDays;
+            const excessLeaves = Math.max(0, actualLeaves - allowedLeaves);
 
-        // ---------------------------------------------------------
-        // SALARY LOGIC
-        // ---------------------------------------------------------
+            const perDaySalary = emp.salaryBase / daysInMonth;
+            const leaveDeduction = excessLeaves * perDaySalary;
 
-        // Fetch correct allowed leaves
-        const allowedLeaves =
-            emp.allowedLeavesPerMonth !== undefined
-                ? emp.allowedLeavesPerMonth
-                : 0;
+            const extraDays = Math.max(
+                0,
+                attendanceDays - (daysInMonth - allowedLeaves)
+            );
+            const extraBonus = extraDays * perDaySalary;
 
-        console.log(emp)
-        const actualLeaves = daysInMonth - attendanceDays;
-        const excessLeaves = Math.max(0, actualLeaves - allowedLeaves);
+            const hourRate = emp.salaryBase / (daysInMonth * 10);
+            const minuteRate = hourRate / 60;
+            const overtimePay = totalOT * minuteRate;
 
-        // Day salary
-        const perDaySalary = emp.salaryBase / daysInMonth;
+            const finalSalary =
+                emp.salaryBase - leaveDeduction + extraBonus + overtimePay;
 
-        // Deduction for excess leaves
-        const leaveDeduction = excessLeaves * perDaySalary;
+            results.push({
+                key: emp.id,
+                employeeName: emp.name,
+                daysInMonth,
+                attendanceDays,
+                actualLeaves,
+                allowedLeaves,
+                excessLeaves,
+                leaveDeduction: leaveDeduction.toFixed(3),
+                extraWorkingDays: extraDays,
+                extraBonus: extraBonus.toFixed(3),
+                workedHours: (totalWorkedMinutes / 60).toFixed(2),
+                overtimeMinutes: totalOT,
+                overtimePay: overtimePay.toFixed(3),
+                salaryBase: emp.salaryBase.toFixed(3),
+                finalSalary: finalSalary.toFixed(3),
+            });
+        }
 
-        // Bonus for extra days worked
-        const extraWorkingDays = Math.max(
-            0,
-            attendanceDays - (daysInMonth - allowedLeaves)
-        );
-        const extraBonus = extraWorkingDays * perDaySalary;
-
-        // Hour and minute pay
-        const hourRate = emp.salaryBase / (daysInMonth * 10); // 10 hr shift assumption
-        const minuteRate = hourRate / 60;
-
-        overtimePay = (totalOvertimeMinutes * minuteRate)?.toFixed(3);
-
-        const finalSalary = (
-            emp.salaryBase -
-            leaveDeduction +
-            extraBonus +
-            Number(overtimePay)
-        )?.toFixed(3);
-
-        // Build report
-        setReport({
-            employeeName: emp.name,
-            daysInMonth,
-            attendanceDays,
-            actualLeaves,
-            allowedLeaves,
-            excessLeaves,
-            leaveDeduction: leaveDeduction?.toFixed(3),
-            extraWorkingDays,
-            extraBonus: extraBonus?.toFixed(3),
-            workedHours: (totalWorkedMinutes / 60)?.toFixed(2),
-            overtimeMinutes: totalOvertimeMinutes,
-            overtimePay,
-            salaryBase: emp.salaryBase?.toFixed(3),
-            finalSalary,
-        });
+        setReports(results);
+        setLoading(false);
     };
 
-    useEffect(() => {
-        loadReport();
-    }, [selectedEmp, month, employees]);
+    // EXPORT PDF
+    const exportPDF = () => {
+        const doc = new jsPDF("landscape");
+        doc.setFontSize(18);
+        doc.text("Salary Report", 14, 20);
 
-    // ------------------------------------------------------------------
-    // TABLE COLUMNS
-    // ------------------------------------------------------------------
+        autoTable(doc, {
+            startY: 30,
+            head: [
+                [
+                    "Employee",
+                    "Days",
+                    "Attend",
+                    "Leaves",
+                    "Excess",
+                    "Deduction",
+                    "Extra",
+                    "Bonus",
+                    "Hours",
+                    "OT Min",
+                    "OT Pay",
+                    "Base",
+                    "Final",
+                ],
+            ],
+            body: reports.map((r) => [
+                r.employeeName,
+                r.daysInMonth,
+                r.attendanceDays,
+                r.actualLeaves,
+                r.excessLeaves,
+                r.leaveDeduction,
+                r.extraWorkingDays,
+                r.extraBonus,
+                r.workedHours,
+                r.overtimeMinutes,
+                r.overtimePay,
+                r.salaryBase,
+                r.finalSalary,
+            ]),
+        });
+
+        doc.save("salary_report.pdf");
+    };
+
+    // Columns
     const columns = [
-        { title: "Employee", dataIndex: "employeeName", width: 120, fixed: "left" },
-        { title: "Days", dataIndex: "daysInMonth", width: 60 },
-        { title: "Attend", dataIndex: "attendanceDays", width: 70 },
-        { title: "Actual Leaves", dataIndex: "actualLeaves", width: 90 },
-        { title: "Allowed Leaves", dataIndex: "allowedLeaves", width: 90 },
-        { title: "Excess", dataIndex: "excessLeaves", width: 70 },
-        { title: "Leave Deduction", dataIndex: "leaveDeduction", width: 120 },
-        { title: "Extra Days", dataIndex: "extraWorkingDays", width: 80 },
-        { title: "Extra Bonus", dataIndex: "extraBonus", width: 100 },
-        { title: "Worked Hours", dataIndex: "workedHours", width: 90 },
-        { title: "OT Min", dataIndex: "overtimeMinutes", width: 70 },
-        { title: "OT Pay", dataIndex: "overtimePay", width: 90 },
-        { title: "Base Salary", dataIndex: "salaryBase", width: 100 },
-        { title: "Final Salary", dataIndex: "finalSalary", width: 110 },
+        { title: "Employee", dataIndex: "employeeName", fixed: "left", width: 150 },
+        { title: "Days", dataIndex: "daysInMonth" },
+        { title: "Attend", dataIndex: "attendanceDays" },
+        { title: "Leaves", dataIndex: "actualLeaves" },
+        { title: "Excess", dataIndex: "excessLeaves" },
+        { title: "Deduction", dataIndex: "leaveDeduction" },
+        { title: "Extra Days", dataIndex: "extraWorkingDays" },
+        { title: "Bonus", dataIndex: "extraBonus" },
+        { title: "Hours", dataIndex: "workedHours" },
+        { title: "OT Min", dataIndex: "overtimeMinutes" },
+        { title: "OT Pay", dataIndex: "overtimePay" },
+        { title: "Base Salary", dataIndex: "salaryBase" },
+        { title: "Final Salary", dataIndex: "finalSalary" },
     ];
 
-    // ------------------------------------------------------------------
-    // UI
-    // ------------------------------------------------------------------
+    // FILTERED DATA
+    const filteredReports = reports
+        .filter((r) =>
+            r.employeeName.toLowerCase().includes(search.toLowerCase())
+        )
+        .filter((r) =>
+            filters.minAttendance ? r.attendanceDays >= filters.minAttendance : true
+        )
+        .filter((r) =>
+            filters.maxLeaves ? r.actualLeaves <= filters.maxLeaves : true
+        )
+        .filter((r) =>
+            filters.otMin ? r.overtimeMinutes >= filters.otMin : true
+        )
+        .sort((a, b) => {
+            if (filters.sortBy === "salary-high") return b.finalSalary - a.finalSalary;
+            if (filters.sortBy === "salary-low") return a.finalSalary - b.finalSalary;
+            if (filters.sortBy === "hours") return b.workedHours - a.workedHours;
+            return 0;
+        });
 
     return (
-        <div style={{ padding: 20, margin: "auto" }}>
-            <Card title="Salary Report" style={{ borderRadius: 12 }}>
+        <div style={{ padding: 20 }}>
+            <Card title="Salary Report" style={{ borderRadius: 16 }}>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
-                    <Select
-                        placeholder="Select Employee"
-                        style={{ width: 250 }}
-                        onChange={setSelectedEmp}
-                        options={employees.map((e) => ({
-                            label: e.name,
-                            value: e.id,
-                        }))}
-                    />
+                {/* ---------------- MOBILE DROPDOWN FILTERS ---------------- */}
+                {isMobile ? (
+                    <Card
+                        style={{
+                            borderRadius: 14,
+                            marginBottom: 15,
+                            background: "rgba(255,255,255,0.6)",
+                            backdropFilter: "blur(16px)",
+                            border: "1px solid rgba(255,255,255,0.4)",
+                        }}
+                        bodyStyle={{ padding: 12 }}
+                    >
+                        <details>
+                            <summary
+                                style={{
+                                    fontSize: 18,
+                                    paddingBottom: 10,
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                
+                                <img src="https://img.icons8.com/glassmorphism/20/filter.png" alt="filter" /> Filters & Options
+                            </summary>
 
-                    <MonthPicker value={month} onChange={setMonth} style={{ width: 150 }} />
-                </div>
+                            <Space direction="vertical" style={{ width: "100%", marginTop: 12 }}>
+                                <MonthPicker value={month} onChange={setMonth} style={{ width: "100%" }} />
 
-                {report && (
-                    <div style={{ overflowX: "auto", borderRadius: 8 }}>
+                                <Search
+                                    placeholder="Search employee..."
+                                    allowClear
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    style={{ width: "100%" }}
+                                />
+
+                                <Select
+                                    placeholder="Min Attendance"
+                                    value={filters.minAttendance}
+                                    onChange={(v) => updateFilters("minAttendance", v)}
+                                    options={[
+                                        { label: "10+", value: 10 },
+                                        { label: "15+", value: 15 },
+                                        { label: "20+", value: 20 },
+                                    ]}
+                                    style={{ width: "100%" }}
+                                />
+
+                                <Select
+                                    placeholder="Max Leaves"
+                                    value={filters.maxLeaves}
+                                    onChange={(v) => updateFilters("maxLeaves", v)}
+                                    options={[
+                                        { label: "≤ 5", value: 5 },
+                                        { label: "≤ 3", value: 3 },
+                                        { label: "≤ 1", value: 1 },
+                                    ]}
+                                    style={{ width: "100%" }}
+                                />
+
+                                <Select
+                                    placeholder="OT Minutes ≥"
+                                    value={filters.otMin}
+                                    onChange={(v) => updateFilters("otMin", v)}
+                                    options={[
+                                        { label: "60+", value: 60 },
+                                        { label: "120+", value: 120 },
+                                        { label: "300+", value: 300 },
+                                    ]}
+                                    style={{ width: "100%" }}
+                                />
+
+                                <Select
+                                    placeholder="Sort By"
+                                    value={filters.sortBy}
+                                    onChange={(v) => updateFilters("sortBy", v)}
+                                    options={[
+                                        { label: "Salary High → Low", value: "salary-high" },
+                                        { label: "Salary Low → High", value: "salary-low" },
+                                        { label: "Worked Hours", value: "hours" },
+                                    ]}
+                                    style={{ width: "100%" }}
+                                />
+
+                                <Button type="primary" onClick={exportPDF} block>
+                                    📄 Export PDF
+                                </Button>
+
+                                <Button
+                                    danger
+                                    onClick={resetFilters}
+                                    disabled={
+                                        JSON.stringify(filters) === JSON.stringify(defaultFilters)
+                                    }
+                                    block
+                                >
+                                    Reset Filters
+                                </Button>
+
+                                <Button
+                                    onClick={undoFilters}
+                                    disabled={
+                                        JSON.stringify(filters) === JSON.stringify(prevFilters)
+                                    }
+                                    block
+                                >
+                                    Undo
+                                </Button>
+                            </Space>
+                        </details>
+                    </Card>
+                ) : (
+                    /* ---------------- DESKTOP FILTERS ---------------- */
+                    <Space wrap style={{ marginBottom: 20 }}>
+                        <MonthPicker value={month} onChange={setMonth} />
+
+                        <Search
+                            placeholder="Search employee..."
+                            allowClear
+                            onChange={(e) => setSearch(e.target.value)}
+                            style={{ width: 200 }}
+                        />
+
+                        <Select
+                            placeholder="Min Attendance"
+                            value={filters.minAttendance}
+                            onChange={(v) => updateFilters("minAttendance", v)}
+                            options={[
+                                { label: "10+", value: 10 },
+                                { label: "15+", value: 15 },
+                                { label: "20+", value: 20 },
+                            ]}
+                            style={{ width: 150 }}
+                        />
+
+                        <Select
+                            placeholder="Max Leaves"
+                            value={filters.maxLeaves}
+                            onChange={(v) => updateFilters("maxLeaves", v)}
+                            options={[
+                                { label: "≤ 5", value: 5 },
+                                { label: "≤ 3", value: 3 },
+                                { label: "≤ 1", value: 1 },
+                            ]}
+                            style={{ width: 150 }}
+                        />
+
+                        <Select
+                            placeholder="OT Minutes ≥"
+                            value={filters.otMin}
+                            onChange={(v) => updateFilters("otMin", v)}
+                            options={[
+                                { label: "60+", value: 60 },
+                                { label: "120+", value: 120 },
+                                { label: "300+", value: 300 },
+                            ]}
+                            style={{ width: 150 }}
+                        />
+
+                        <Select
+                            placeholder="Sort By"
+                            value={filters.sortBy}
+                            onChange={(v) => updateFilters("sortBy", v)}
+                            options={[
+                                { label: "Salary High → Low", value: "salary-high" },
+                                { label: "Salary Low → High", value: "salary-low" },
+                                { label: "Worked Hours", value: "hours" },
+                            ]}
+                            style={{ width: 180 }}
+                        />
+
+                        <Button type="primary" onClick={exportPDF}>📄 Export PDF</Button>
+
+                        <Button
+                            danger
+                            onClick={resetFilters}
+                            disabled={
+                                JSON.stringify(filters) === JSON.stringify(defaultFilters)
+                            }
+                        >
+                            Reset Filters
+                        </Button>
+
+                        <Button
+                            onClick={undoFilters}
+                            disabled={JSON.stringify(filters) === JSON.stringify(prevFilters)}
+                        >
+                            Undo
+                        </Button>
+                    </Space>
+                )}
+
+                {/* ----------------------- TABLE OR LOADER ----------------------- */}
+                {loading ? (
+                    <Skeleton active paragraph={{ rows: 10 }} />
+                ) : (
+                    <div style={{ overflowX: "auto", borderRadius: 10 }}>
                         <Table
                             columns={columns}
-                            dataSource={[report]}
-                            pagination={false}
-                            rowKey="employeeName"
-                            scroll={{ x: "max-content" }}
+                            dataSource={filteredReports}
                             size="small"
                             bordered
+                            pagination={{ pageSize: 20 }}
                         />
                     </div>
                 )}
-
             </Card>
         </div>
     );

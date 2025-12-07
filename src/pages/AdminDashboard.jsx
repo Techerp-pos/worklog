@@ -1,6 +1,6 @@
-import { Card, Row, Col, Statistic, List, Tag } from "antd";
+import { Card, Row, Col, Statistic, List, Tag, Button, Modal } from "antd";
 import { useEffect, useState } from "react";
-import { db } from "../firebase/config";
+import { db, auth } from "../firebase/config";
 import {
     collection,
     onSnapshot,
@@ -8,11 +8,14 @@ import {
     doc,
     getDoc,
 } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
+import "../styles/iosDashboard.css"; // <-- IMPORTANT: include the CSS file
 
 export default function AdminDashboard() {
     const [org, setOrg] = useState(null);
-    const [users, setUsers] = useState({}); // uid → employee data
+    const [users, setUsers] = useState({});
 
     const [stats, setStats] = useState({
         totalEmployees: 0,
@@ -26,8 +29,38 @@ export default function AdminDashboard() {
     const [recentList, setRecentList] = useState([]);
 
     const today = dayjs().format("YYYY-MM-DD");
+    const navigate = useNavigate();
 
-    // ========================= LOAD ORG =========================
+    // ======================================================
+    // LOGOUT WITH CONFIRMATION (iOS style)
+    // ======================================================
+    const askLogout = () => {
+        Modal.confirm({
+            title: "Confirm Logout",
+            content: "Are you sure you want to logout?",
+            okText: "Logout",
+            cancelText: "Cancel",
+            okButtonProps: { danger: true },
+            centered: true,
+            onOk: handleLogout,
+        });
+    };
+
+    const handleLogout = async () => {
+        await signOut(auth);
+
+        localStorage.removeItem("worklog_user");
+        localStorage.removeItem("pending_google_uid");
+        localStorage.removeItem("pending_google_name");
+        localStorage.removeItem("pending_google_email");
+        localStorage.removeItem("worklog_admin_override_org");
+
+        navigate("/", { replace: true });
+    };
+
+    // ======================================================
+    // LOAD ORGANIZATION
+    // ======================================================
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem("worklog_user"));
         let orgId = user?.orgId;
@@ -42,7 +75,9 @@ export default function AdminDashboard() {
         });
     }, []);
 
-    // ========================= LOAD USERS (EMPLOYEES) =========================
+    // ======================================================
+    // LOAD USERS (employees)
+    // ======================================================
     useEffect(() => {
         onSnapshot(collection(db, "users"), (snap) => {
             let map = {};
@@ -56,7 +91,9 @@ export default function AdminDashboard() {
         });
     }, []);
 
-    // ========================= LOAD TODAY ATTENDANCE =========================
+    // ======================================================
+    // LOAD TODAY'S ATTENDANCE
+    // ======================================================
     useEffect(() => {
         onSnapshot(collectionGroup(db, "days"), (snap) => {
             let present = 0;
@@ -80,7 +117,6 @@ export default function AdminDashboard() {
 
                 const emp = users[att.uid];
 
-                // ================= INSIDE NOW =================
                 if (checkIn && !checkOut) {
                     inside.push({
                         employeeName: att.employeeName,
@@ -88,7 +124,6 @@ export default function AdminDashboard() {
                     });
                 }
 
-                // ================= RECENT EVENTS =================
                 if (checkIn) {
                     recent.push({
                         name: att.employeeName,
@@ -105,26 +140,21 @@ export default function AdminDashboard() {
                     });
                 }
 
-                // ================= AVERAGE CHECK-IN =================
                 if (checkIn)
                     totalCheckInMinutes += checkIn.hour() * 60 + checkIn.minute();
 
-                // ================= OVERTIME CALC =================
                 if (emp && att.durationMinutes) {
                     const required = (emp.shiftHoursPerDay ?? 0) * 60;
                     const worked = att.durationMinutes;
 
-                    if (worked > required) {
-                        overtime += worked - required;
-                    }
+                    if (worked > required) overtime += worked - required;
                 }
             });
 
-            recent.sort((a, b) =>
-                dayjs(b.time, "hh:mm A") - dayjs(a.time, "hh:mm A")
+            recent.sort(
+                (a, b) => dayjs(b.time, "hh:mm A") - dayjs(a.time, "hh:mm A")
             );
 
-            // ================= AVG CHECK-IN =================
             let avg = "--";
             if (present > 0 && totalCheckInMinutes > 0) {
                 const avgMin = Math.round(totalCheckInMinutes / present);
@@ -147,23 +177,22 @@ export default function AdminDashboard() {
     return (
         <div className="dashboard-wrapper">
 
-            {/* ================= ORGANIZATION HEADER ================= */}
+            {/* ========== LOGOUT BUTTON ========== */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+                <Button className="ios-logout-btn" onClick={askLogout}>
+                    Logout
+                </Button>
+            </div>
+
+            {/* ========== ORGANIZATION HEADER ========== */}
             {org && (
-                <Card
-                    style={{
-                        marginBottom: 25,
-                        padding: "5px 20px",
-                        borderLeft: "5px solid #ff8e31",
-                    }}
-                >
-                    <h2 style={{ color: "#ff3131" }}>Company: {org.name}</h2>
+                <Card className="dashboard-card ios-org-card">
+                    <h2 style={{ color: "#ff3131", marginBottom: 8 }}>
+                        Company: {org.name}
+                    </h2>
 
-                    <div>
-                        <strong>Join Code:</strong> {org.joinCode}{" "}
-                        <span style={{ color: "#999" }}>(give this to employees)</span>
-                    </div>
-
-                    <div>
+                    <div><strong>Join Code:</strong> {org.joinCode}</div>
+                    <div style={{ marginTop: 6 }}>
                         <strong>Created:</strong>{" "}
                         {org.createdAt?.seconds
                             ? new Date(org.createdAt.seconds * 1000).toDateString()
@@ -172,72 +201,54 @@ export default function AdminDashboard() {
                 </Card>
             )}
 
-            {/* ================= STAT CARDS ================= */}
-            <Row gutter={[16, 16]}>
+            {/* ========== STAT CARDS ========== */}
+            <Row gutter={[16, 16]} style={{ marginTop: 20 }}>
+
                 <Col xs={12} md={6}>
-                    <Card>
+                    <Card className="dashboard-card ios-stat-card">
                         <Statistic
                             title="Total Employees"
                             value={stats.totalEmployees}
-                            prefix={
-                                <img
-                                    src="https://img.icons8.com/glassmorphism/48/group-background-selected.png"
-                                    style={{ width: 30 }}
-                                />
-                            }
+                            prefix={<img src="https://img.icons8.com/glassmorphism/48/group-background-selected.png" style={{ width: 30 }} />}
                         />
                     </Card>
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Card>
+                    <Card className="dashboard-card ios-stat-card">
                         <Statistic
                             title="Present Today"
                             value={stats.presentToday}
-                            prefix={
-                                <img
-                                    src="https://img.icons8.com/glassmorphism/48/worker-male.png"
-                                    style={{ width: 30 }}
-                                />
-                            }
+                            prefix={<img src="https://img.icons8.com/glassmorphism/48/worker-male.png" style={{ width: 30 }} />}
                         />
                     </Card>
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Card>
+                    <Card className="dashboard-card ios-stat-card">
                         <Statistic
                             title="Inside Now"
                             value={stats.insideNow}
-                            prefix={
-                                <img
-                                    src="https://img.icons8.com/glassmorphism/48/share-2.png"
-                                    style={{ width: 30 }}
-                                />
-                            }
+                            prefix={<img src="https://img.icons8.com/glassmorphism/48/share-2.png" style={{ width: 30 }} />}
                         />
                     </Card>
                 </Col>
 
                 <Col xs={12} md={6}>
-                    <Card>
+                    <Card className="dashboard-card ios-stat-card">
                         <Statistic
                             title="Overtime Today"
                             value={stats.overtimeToday}
                             suffix="min"
-                            prefix={
-                                <img
-                                    src="https://img.icons8.com/glassmorphism/48/clock.png"
-                                    style={{ width: 30 }}
-                                />
-                            }
+                            prefix={<img src="https://img.icons8.com/glassmorphism/48/clock.png" style={{ width: 30 }} />}
                         />
                     </Card>
                 </Col>
+
             </Row>
 
-            {/* ================= INSIDE NOW ================= */}
-            <Card title="Employees Inside Now" style={{ marginTop: 20 }}>
+            {/* ========== INSIDE NOW ========== */}
+            <Card className="dashboard-card ios-list-card" title="Employees Inside Now" style={{ marginTop: 25 }}>
                 <List
                     dataSource={insideList}
                     renderItem={(item) => (
@@ -252,8 +263,8 @@ export default function AdminDashboard() {
                 />
             </Card>
 
-            {/* ================= RECENT ACTIVITY ================= */}
-            <Card title="Recent Activity" style={{ marginTop: 20 }}>
+            {/* ========== RECENT ACTIVITY ========== */}
+            <Card className="dashboard-card ios-list-card" title="Recent Activity" style={{ marginTop: 25 }}>
                 <List
                     dataSource={recentList}
                     renderItem={(item) => (
@@ -276,6 +287,7 @@ export default function AdminDashboard() {
                     )}
                 />
             </Card>
+
         </div>
     );
 }

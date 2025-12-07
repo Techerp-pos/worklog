@@ -7,14 +7,18 @@ import {
     GoogleAuthProvider
 } from "firebase/auth";
 import { auth, db } from "../firebase/config";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import "../styles/Login.css";
 
 export default function Login() {
-    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const provider = new GoogleAuthProvider();
+
+    // Loading states
+    const [loadingEmail, setLoadingEmail] = useState(false);
+    const [loadingSignup, setLoadingSignup] = useState(false);
+    const [loadingGoogle, setLoadingGoogle] = useState(false);
 
     // ================================
     // ROLE-BASED REDIRECT
@@ -27,6 +31,7 @@ export default function Login() {
             return u.orgId ? navigate("/employee") : navigate("/join-organization");
     };
 
+    // AUTO REDIRECT IF ALREADY LOGGED IN
     useEffect(() => {
         const raw = localStorage.getItem("worklog_user");
         if (!raw) return;
@@ -43,11 +48,14 @@ export default function Login() {
         }
     }, []);
 
-    
     // ================================
-    // GOOGLE SIGN-IN (POPUP) → WORKS
+    // GOOGLE LOGIN
     // ================================
     const googleLogin = async () => {
+        if (loadingGoogle) return; // prevent multi-click
+
+        setLoadingGoogle(true);
+
         try {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
@@ -60,16 +68,18 @@ export default function Login() {
                 return redirectUser(userData);
             }
 
-            // NEW EMPLOYEE — must join org
+            // NEW EMPLOYEE
             localStorage.setItem("pending_google_uid", user.uid);
             localStorage.setItem("pending_google_name", user.displayName || "");
             localStorage.setItem("pending_google_email", user.email || "");
 
-            return navigate("/join-organization");
+            navigate("/join-organization");
 
         } catch (err) {
             console.error(err);
             message.error("Google login failed");
+        } finally {
+            setLoadingGoogle(false);
         }
     };
 
@@ -77,8 +87,11 @@ export default function Login() {
     // EMAIL LOGIN
     // ================================
     const handleEmailLogin = async (v) => {
+        if (loadingEmail) return;
+
+        setLoadingEmail(true);
+
         try {
-            setLoading(true);
             const res = await signInWithEmailAndPassword(auth, v.email, v.password);
             const snap = await getDoc(doc(db, "users", res.user.uid));
 
@@ -87,23 +100,25 @@ export default function Login() {
             const userData = { uid: res.user.uid, ...snap.data() };
             localStorage.setItem("worklog_user", JSON.stringify(userData));
             redirectUser(userData);
+
         } catch (err) {
             message.error("Invalid credentials");
         } finally {
-            setLoading(false);
+            setLoadingEmail(false);
         }
     };
 
     // ================================
-    // EMAIL SIGN UP → employee
+    // EMAIL SIGNUP
     // ================================
     const handleEmailSignup = async (v) => {
-        try {
-            setLoading(true);
+        if (loadingSignup) return;
 
+        setLoadingSignup(true);
+
+        try {
             const res = await createUserWithEmailAndPassword(auth, v.email, v.password);
 
-            // temporarily store details → join org
             localStorage.setItem("pending_google_uid", res.user.uid);
             localStorage.setItem("pending_google_name", v.name);
             localStorage.setItem("pending_google_email", v.email);
@@ -115,7 +130,7 @@ export default function Login() {
             console.log(err);
             message.error("Signup failed");
         } finally {
-            setLoading(false);
+            setLoadingSignup(false);
         }
     };
 
@@ -129,15 +144,24 @@ export default function Login() {
 
             <div className="login-left">
                 <div className="login-box">
+
                     <div style={{ display: "flex", justifyContent: "center", gap: 8, alignItems: 'center' }}>
                         <div className="logo-placeholder">W</div>
                         <h2 className="login-title">Welcome to WorkLog</h2>
                     </div>
 
                     <Tabs defaultActiveKey="login" centered>
-                        {/* LOGIN TAB */}
+
+                        {/* ========== LOGIN TAB ========== */}
                         <Tabs.TabPane tab="Log In" key="login">
-                            <Button className="social-btn" icon={<img src="https://img.icons8.com/color/22/google-logo.png" alt="google" />} onClick={googleLogin}>
+
+                            <Button
+                                className="social-btn"
+                                icon={<img src="https://img.icons8.com/color/22/google-logo.png" alt="google" />}
+                                onClick={googleLogin}
+                                loading={loadingGoogle}
+                                disabled={loadingGoogle || loadingEmail}
+                            >
                                 Continue with Google
                             </Button>
 
@@ -147,22 +171,35 @@ export default function Login() {
 
                             <Form layout="vertical" onFinish={handleEmailLogin}>
                                 <Form.Item name="email" label="Email" rules={[{ required: true }]}>
-                                    <Input />
+                                    <Input disabled={loadingGoogle} />
                                 </Form.Item>
 
                                 <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-                                    <Input.Password />
+                                    <Input.Password disabled={loadingGoogle} />
                                 </Form.Item>
 
-                                <Button type="primary" htmlType="submit" block loading={loading}>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    block
+                                    loading={loadingEmail}
+                                    disabled={loadingGoogle}
+                                >
                                     Log In
                                 </Button>
                             </Form>
                         </Tabs.TabPane>
 
-                        {/* SIGNUP TAB */}
+                        {/* ========== SIGN UP TAB ========== */}
                         <Tabs.TabPane tab="Sign Up" key="signup">
-                            <Button className="social-btn" icon={<img src="https://img.icons8.com/color/22/google-logo.png" alt="google" />} onClick={googleLogin}>
+
+                            <Button
+                                className="social-btn"
+                                icon={<img src="https://img.icons8.com/color/22/google-logo.png" alt="google" />}
+                                onClick={googleLogin}
+                                loading={loadingGoogle}
+                                disabled={loadingGoogle || loadingSignup}
+                            >
                                 Sign up with Google
                             </Button>
 
@@ -171,22 +208,30 @@ export default function Login() {
                             </div>
 
                             <Form layout="vertical" onFinish={handleEmailSignup}>
+
                                 <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
-                                    <Input />
+                                    <Input disabled={loadingGoogle} />
                                 </Form.Item>
 
                                 <Form.Item name="email" label="Email" rules={[{ required: true }]}>
-                                    <Input />
+                                    <Input disabled={loadingGoogle} />
                                 </Form.Item>
 
                                 <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-                                    <Input.Password />
+                                    <Input.Password disabled={loadingGoogle} />
                                 </Form.Item>
 
-                                <Button type="primary" htmlType="submit" block loading={loading}>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    block
+                                    loading={loadingSignup}
+                                    disabled={loadingGoogle}
+                                >
                                     Sign Up
                                 </Button>
                             </Form>
+
                         </Tabs.TabPane>
                     </Tabs>
                 </div>
@@ -197,6 +242,7 @@ export default function Login() {
                 <p className="brand-title">Every Attendance counts.</p>
                 <p className="brand-subtitle">Every day you log matters.</p>
             </div>
+
         </div>
     );
 }

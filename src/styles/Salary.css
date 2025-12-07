@@ -1,0 +1,85 @@
+.ios-salary-page {
+    padding: 20px;
+    background: linear-gradient(180deg, #f2f4f7, #e3e6eb);
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.ios-salary-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.ios-salary-header h2 {
+    font-weight: 700;
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+
+.ios-salary-header p {
+    opacity: 0.6;
+}
+
+.ios-month-picker {
+    display: block !important;
+    margin: 0 auto 20px auto;
+}
+
+.ios-salary-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+}
+
+.ios-total-box {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.ios-total-box span {
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+.ios-total-box h1 {
+    font-size: 42px;
+    font-weight: 800;
+    margin-top: 5px;
+    background: linear-gradient(90deg, #007aff, #34c759);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.ios-section {
+    margin-top: 25px;
+}
+
+.ios-section h3 {
+    font-size: 15px;
+    opacity: 0.6;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ios-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.ios-row:last-child {
+    border-bottom: none;
+}
+
+.ios-row span {
+    opacity: 0.7;
+}
+
+.ios-row b {
+    font-weight: 600;
+}

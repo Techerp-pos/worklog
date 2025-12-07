@@ -74,16 +74,6 @@ export default function AdminLayout() {
             </Sider>
 
             <Layout>
-                <Header className="sage-header">
-                    {/* Add a button to manually toggle the sidebar visibility */}
-                    <Button
-                        type="text"
-                        onClick={() => setCollapsed(!collapsed)}
-                        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        className="menu-toggle-button" // Add a class for potential styling
-                    />
-                    <h3>{items.find((i) => i.key === selectedKey)?.label}</h3>
-                </Header>
 
                 <Content style={{ margin: 20 }}>
                     <Outlet />

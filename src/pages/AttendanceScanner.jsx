@@ -13,6 +13,7 @@ import {
 import { db } from "../firebase/config";
 import { calculateOvertimePay } from "../utils/calcOvertime";
 import { updateMonthlySummary } from "../utils/updateMonthlySummary";
+import "../styles/scanner.css";
 
 QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 
@@ -65,7 +66,8 @@ export default function AttendanceScanner() {
             (res) => onScan(res.data),
             {
                 preferredCamera: "environment",
-                highlightScanRegion: true,
+                highlightScanRegion: false,
+                highlightCodeOutline: false,
             }
         );
 
@@ -129,7 +131,7 @@ export default function AttendanceScanner() {
     };
 
     // --------------------------------------------------------
-    // PROCESS ATTENDANCE
+    // PROCESS ATTENDANCE — DO NOT TOUCH (WORKING PERFECT)
     // --------------------------------------------------------
     const processAttendance = async ({ uid, type }) => {
         let user = userCache.current[uid];
@@ -174,17 +176,23 @@ export default function AttendanceScanner() {
                 if (actual.isAfter(shiftEnd)) {
                     overtimeMinutes = actual.diff(shiftEnd, "minute");
 
-                    const { overtimePay: otResult } = calculateOvertimePay(
+                    const { overtimePay: otPay } = calculateOvertimePay(
                         overtimeMinutes,
                         user.overtimeSlabs || []
                     );
-                    overtimePay = otResult;
+
+                    overtimePay = otPay;
                 }
             }
 
             await setDoc(
                 ref,
-                { checkOut: serverTimestamp(), workedMinutes, overtimeMinutes, overtimePay },
+                {
+                    checkOut: serverTimestamp(),
+                    workedMinutes,
+                    overtimeMinutes,
+                    overtimePay,
+                },
                 { merge: true }
             );
 
@@ -220,10 +228,24 @@ export default function AttendanceScanner() {
                 {errorMsg && <Alert type="error" message={errorMsg} showIcon />}
 
                 <div className="camera-frame">
-                    {frozenFrame ? (
-                        <img src={frozenFrame} className="frozen-frame" />
+                    {!frozenFrame ? (
+                        <>
+                            <video ref={videoRef} className="cameraView" />
+
+                            {/* ============================
+                                iOS Style Scan Overlay Box
+                            ============================ */}
+                            <div className="scan-overlay">
+                                <div className="scan-box">
+                                    <div className="corner tl"></div>
+                                    <div className="corner tr"></div>
+                                    <div className="corner bl"></div>
+                                    <div className="corner br"></div>
+                                </div>
+                            </div>
+                        </>
                     ) : (
-                        <video ref={videoRef} className="cameraView" />
+                        <img src={frozenFrame} className="frozen-frame" />
                     )}
                 </div>
 

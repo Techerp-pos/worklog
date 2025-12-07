@@ -1,0 +1,21 @@
+.ant-modal-content {
+    backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.75) !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.ant-table-row:hover {
+    background: rgba(0, 123, 255, 0.08) !important;
+    cursor: pointer;
+}
+
+.ant-descriptions-bordered .ant-descriptions-item-label {
+    background: rgba(255, 255, 255, 0.4);
+    font-weight: 600;
+}
+
+.ant-descriptions-bordered {
+    border-radius: 14px !important;
+}
+

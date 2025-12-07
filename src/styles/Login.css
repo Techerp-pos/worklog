@@ -1,0 +1,166 @@
+:root {
+    --primary: #f77f5c;
+    --primary-light: #ff8f70;
+    --text-dark: #1f1f1f;
+}
+
+/* MAIN WRAPPER */
+.login-wrapper {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    background: #f5f6f8;
+    overflow: hidden;
+    font-family: "Inter", sans-serif;
+}
+
+/* LEFT SIDE */
+.login-left {
+    flex: 1;
+    background: white;
+    display: flex;
+    align-items: center;
+    /* FIX: Vertically centers content */
+    justify-content: center;
+    /* FIX: Horizontally centers content */
+    padding: 40px;
+}
+
+.login-box {
+    width: 100%;
+    max-width: 380px;
+    /* FIX: Prevents extremely wide form */
+}
+
+.logo-placeholder {
+    width: 38px;
+    height: 38px;
+    background: var(--primary);
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-left: 6px;
+}
+
+.login-subtitle {
+    margin-top: 5px;
+    margin-bottom: 18px;
+    font-size: 14px;
+    color: #606060;
+}
+
+/* Buttons */
+.social-btn {
+    width: 100%;
+    height: 42px;
+    border-radius: 6px !important;
+    border: 1px solid #e0e0e0 !important;
+    background: white !important;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.login-btn {
+    width: 100%;
+    height: 42px;
+    background: var(--primary);
+    font-weight: 600;
+    color: white;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.login-btn:hover {
+    background: var(--primary-light) !important;
+}
+
+/* RIGHT SIDE */
+.login-right {
+    flex: 1;
+    background: var(--primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* FIX */
+    justify-content: center;
+    /* FIX */
+    text-align: center;
+    color: white;
+    padding: 40px;
+}
+
+.worklog {
+    font-size: 85px;
+    font-weight: 800;
+    font-style: italic;
+    margin-bottom: 18px;
+}
+
+/* Brand Text */
+.brand-content {
+    max-width: 300px;
+}
+
+.brand-title {
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.brand-subtitle {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* MOBILE HEADER — hidden by default */
+.mobile-header {
+    display: none;
+}
+
+/* 🔥 RESPONSIVE FIXES */
+@media (max-width: 900px) {
+    .login-wrapper {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    /* Show mobile header */
+    .mobile-header {
+        display: block;
+        background: var(--primary);
+        color: white;
+        text-align: center;
+        padding: 18px;
+        width: 100%;
+        font-size: 32px;
+        font-weight: 800;
+        font-style: italic;
+        margin-bottom: 20px;
+    }
+
+    /* Hide right panel */
+    .login-right {
+        display: none;
+    }
+
+    /* Adjust left panel */
+    .login-left {
+        align-items: flex-start;
+        /* FIX: No extra vertical spacing */
+        padding-top: 10px;
+    }
+
+    .login-box {
+        max-width: 330px;
+    }
+}

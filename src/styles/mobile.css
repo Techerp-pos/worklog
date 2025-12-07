@@ -1,0 +1,47 @@
+/* MOBILE OPTIMIZATION — applies globally */
+
+@media (max-width: 768px) {
+    .mobile-card {
+        padding: 16px !important;
+    }
+
+    .mobile-flex {
+        display: flex;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .mobile-full {
+        width: 100% !important;
+    }
+
+    .ant-form-item {
+        margin-bottom: 14px !important;
+    }
+
+    .ant-picker {
+        width: 100% !important;
+    }
+
+    .ant-input,
+    .ant-input-password,
+    .ant-input-number,
+    .ant-select-selector {
+        height: 44px !important;
+        font-size: 16px !important;
+    }
+
+    button,
+    .ant-btn {
+        height: 48px !important;
+        font-size: 17px !important;
+    }
+
+    .ant-table {
+        font-size: 13px !important;
+    }
+
+    .ant-card {
+        border-radius: 12px !important;
+    }
+}

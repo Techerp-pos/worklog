@@ -1,0 +1,51 @@
+.ant-modal {
+    margin-top: -70px !important;
+}
+
+.employee-page {
+    padding: 16px;
+    margin-top: 20px;
+}
+
+.employee-header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.add-btn {
+    min-width: 90px;
+}
+
+.search-input {
+    width: 180px;
+}
+
+.dept-filter {
+    width: 150px;
+}
+
+/* TABLE SCROLL ON MOBILE */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+@media (max-width: 600px) {
+    .employee-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input,
+    .dept-filter,
+    .add-btn {
+        width: 100% !important;
+    }
+
+    .employee-page {
+        padding: 10px;
+    }
+}

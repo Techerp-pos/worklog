@@ -1,0 +1,35 @@
+/* Hide default sidebar on mobile */
+.mobile-menu-btn {
+    display: none;
+    position: fixed;
+    left: 10px;
+    top: 10px;
+    z-index: 1000;
+}
+
+.section-card {
+    margin-top: 20px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: inline-flex;
+    }
+
+    .dashboard-wrapper {
+        padding-top: 50px;
+    }
+
+    .dashboard-row {
+        margin-bottom: 20px;
+    }
+
+    .glass-card {
+        width: 100% !important;
+    }
+
+    .ant-list-item-meta-title {
+        font-size: 14px !important;
+    }
+}

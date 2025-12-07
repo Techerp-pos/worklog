@@ -10,8 +10,8 @@ export default function EmployeeDashboard() {
 
     const logout = async () => {
         await auth.signOut();
-        window.location.href = "/login";
         localStorage.clear()
+        window.location.href = "/";
     };
 
     return (

@@ -225,7 +225,7 @@ export default function AttendanceScanner() {
             (res) => !paused && handleQR(res.data),
             {
                 preferredCamera: "environment",
-                highlightScanRegion: true,
+                highlightScanRegion: false,
                 highlightCodeOutline: false,
             }
         );

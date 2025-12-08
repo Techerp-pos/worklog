@@ -127,38 +127,59 @@ export default function EmployeeForm({ data, close }) {
     // UI
     // ---------------------------------------------------
     return (
-        <Form layout="vertical" form={form} onFinish={onFinish} style={{ paddingBottom: 20 }}>
+        <Form
+            layout="vertical"
+            form={form}
+            onFinish={onFinish}
+            style={{ paddingBottom: 20 }}
+        >
 
             <Divider orientation="left" style={{ fontWeight: 700 }}>
                 Employee Details
             </Divider>
 
-            <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
-                <Input placeholder="Employee Name" />
-            </Form.Item>
+            <div className="form-flex">
 
-            <Form.Item name="email" label="Email" rules={[{ required: true }]}>
-                <Input disabled={!!data} placeholder="example@mail.com" />
-            </Form.Item>
-
-            {!data && (
-                <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-                    <Input.Password placeholder="Create password" />
+                <Form.Item name="name" label="Full Name" rules={[{ required: true }]}>
+                    <Input placeholder="Employee Name" />
                 </Form.Item>
-            )}
+
+                <Form.Item name="email" label="Email" rules={[{ required: true }]}>
+                    <Input disabled={!!data} placeholder="example@mail.com" />
+                </Form.Item>
+
+                {!data && (
+                    <Form.Item name="password" label="Password" rules={[{ required: true }]}>
+                        <Input.Password placeholder="Create password" />
+                    </Form.Item>
+                )}
+
+            </div>
 
             <Divider orientation="left" style={{ fontWeight: 700 }}>
                 Salary & Work Info
             </Divider>
 
-            <Form.Item name="salaryBase" label="Base Salary (OMR)">
-                <InputNumber
-                    min={0}
-                    precision={3}
-                    style={{ width: "100%" }}
-                    onChange={onSalaryChange}
-                />
-            </Form.Item>
+            <div className="form-flex">
+
+                <Form.Item name="salaryBase" label="Base Salary (OMR)">
+                    <InputNumber
+                        min={0}
+                        precision={3}
+                        style={{ width: "100%" }}
+                        onChange={onSalaryChange}
+                    />
+                </Form.Item>
+
+                <Form.Item name="allowedLeavesPerMonth" label="Allowed Leaves Per Month">
+                    <InputNumber min={0} max={31} style={{ width: "100%" }} />
+                </Form.Item>
+
+                <Form.Item name="shiftHoursPerDay" label="Required Daily Work Hours">
+                    <InputNumber min={1} max={24} style={{ width: "100%" }} />
+                </Form.Item>
+
+            </div>
 
             {/* Derived Salary Preview */}
             <div style={{ marginTop: -10, marginBottom: 10 }}>
@@ -169,14 +190,6 @@ export default function EmployeeForm({ data, close }) {
                     Per Minute Pay: <b>{minutePay} OMR</b>
                 </small>
             </div>
-
-            <Form.Item name="allowedLeavesPerMonth" label="Allowed Leaves Per Month">
-                <InputNumber min={0} max={31} style={{ width: "100%" }} />
-            </Form.Item>
-
-            <Form.Item name="shiftHoursPerDay" label="Required Daily Work Hours">
-                <InputNumber min={1} max={24} style={{ width: "100%" }} />
-            </Form.Item>
 
             <Button
                 type="primary"

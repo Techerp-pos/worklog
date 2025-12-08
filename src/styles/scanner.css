@@ -187,3 +187,29 @@
     z-index: 50;
     color: white;
 }
+
+.scanner-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.back-btn {
+    background: #f0f2f5;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: 0.2s ease;
+}
+
+.back-btn:hover {
+    background: #d9e1ff;
+    color: #4f6ef7;
+}

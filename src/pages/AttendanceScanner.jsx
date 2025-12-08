@@ -1,16 +1,15 @@
 // ======================================================
-// ULTRA FAST SCANNER (NO DUPLICATES, NO REPEAT SCANS)
+// SECURE DYNAMIC QR ATTENDANCE SCANNER
 // ======================================================
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import QrScanner from "qr-scanner";
 import { Alert } from "antd";
 import dayjs from "dayjs";
+import CryptoJS from "crypto-js";
 
 import { db } from "../firebase/config";
 import {
-    collection,
-    getDocs,
     doc,
     getDoc,
     setDoc,
@@ -21,15 +20,19 @@ import "../styles/scanner.css";
 import { calculateOvertimePay } from "../utils/calcOvertime";
 import { updateMonthlySummary } from "../utils/updateMonthlySummary";
 
+import { ArrowLeftOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+
+// SAME SECRET AS MyQR.jsx
+const SECRET = "WORKLOG_SECRET_KEY_123";
+
 QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 
 export default function AttendanceScanner() {
+
+    const navigate = useNavigate();
+
     const videoRef = useRef(null);
-
-    // Caches
-    const qrCache = useRef({});
-    const userCache = useRef({});
-
     const beepRef = useRef(null);
 
     // UI states
@@ -38,33 +41,8 @@ export default function AttendanceScanner() {
     const [scanType, setScanType] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
 
-    // Prevent rapid re-scanning
+    // Prevent rapid scanning
     const scanLock = useRef(false);
-    const lastCodeRef = useRef(null);
-    const lastTimeRef = useRef(0);
-
-    // -----------------------------------------------------
-    // PRELOAD QR CODES
-    // -----------------------------------------------------
-    useEffect(() => {
-        (async () => {
-            const snap = await getDocs(collection(db, "qrCodes"));
-            const map = {};
-
-            snap.forEach((d) => {
-                const v = d.data();
-
-                if (v.codeCheckIn)
-                    map[v.codeCheckIn] = { uid: v.uid, type: "Check-In" };
-
-                if (v.codeCheckOut)
-                    map[v.codeCheckOut] = { uid: v.uid, type: "Check-Out" };
-            });
-
-            qrCache.current = map;
-            setStatus("scanning");
-        })();
-    }, []);
 
     // -----------------------------------------------------
     // PRELOAD SOUND
@@ -75,82 +53,101 @@ export default function AttendanceScanner() {
     }, []);
 
     // -----------------------------------------------------
-    // MAIN SCAN HANDLER (FASTEST POSSIBLE)
+    // VERIFY TOKEN
     // -----------------------------------------------------
-    const handleQR = useCallback(async (code) => {
-        const now = Date.now();
+    const verifyToken = (token) => {
+        try {
+            const { uid, mode, ts, nonce, sig } = token;
 
-        // HARD DEBOUNCE (NO DUPLICATE SCANS)
+            const now = Math.floor(Date.now() / 1000);
+
+            // Expired (allow 20 sec window)
+            if (now - ts > 20) {
+                return { valid: false, reason: "QR expired" };
+            }
+
+            // Signature check
+            const payload = `${uid}|${mode}|${ts}|${nonce}`;
+            const expected = CryptoJS.HmacSHA256(payload, SECRET).toString();
+
+            if (expected !== sig) {
+                return { valid: false, reason: "Invalid signature" };
+            }
+
+            return { valid: true, uid, mode };
+
+        } catch (err) {
+            return { valid: false, reason: "Invalid QR format" };
+        }
+    };
+
+    // -----------------------------------------------------
+    // MAIN SCAN HANDLER
+    // -----------------------------------------------------
+    const handleQR = useCallback(async (data) => {
+
         if (scanLock.current) return;
         scanLock.current = true;
-        setTimeout(() => (scanLock.current = false), 500);
+        setTimeout(() => (scanLock.current = false), 600);
 
-        // Prevent SAME CODE within 1 second
-        if (lastCodeRef.current === code && now - lastTimeRef.current < 1000) {
-            return;
-        }
-
-        lastCodeRef.current = code;
-        lastTimeRef.current = now;
-
-        const hit = qrCache.current[code];
-        if (!hit) {
+        let token;
+        try {
+            token = JSON.parse(data);
+        } catch {
             setErrorMsg("Invalid QR Code");
-            setTimeout(() => setErrorMsg(null), 1400);
+            setTimeout(() => setErrorMsg(null), 1500);
             return;
         }
 
-        const { uid, type } = hit;
+        const validation = verifyToken(token);
 
-        // Load user (cached)
-        let user = userCache.current[uid];
-        if (!user) {
-            const snap = await getDoc(doc(db, "users", uid));
-            if (!snap.exists()) {
-                setErrorMsg("User not found");
-                return;
-            }
-            user = snap.data();
-            userCache.current[uid] = user;
+        if (!validation.valid) {
+            setErrorMsg(validation.reason);
+            setTimeout(() => setErrorMsg(null), 1500);
+            return;
         }
 
+        const { uid, mode } = validation;
+
+        // Load user info
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) {
+            setErrorMsg("User not found");
+            return;
+        }
+
+        const user = snap.data();
+        setEmployee(user);
+
+        // -----------------------
+        // Attendance Logic
+        // -----------------------
         const today = dayjs().format("YYYY-MM-DD");
         const ref = doc(db, "attendance", uid, "days", today);
-
         const todaySnap = await getDoc(ref);
+
         const record = todaySnap.exists() ? todaySnap.data() : {};
 
-        // -----------------------------------------------------
         // CHECK-IN
-        // -----------------------------------------------------
-        if (type === "Check-In") {
-            if (record.checkIn) {
-                // Already checked in → show message only
-                setScanType("Already Checked-In");
-            } else {
-                await setDoc(
-                    ref,
-                    {
-                        uid,
-                        employeeName: user.name,
-                        date: today,
-                        checkIn: serverTimestamp(),
-                    },
-                    { merge: true }
-                );
+        if (mode === "check-in") {
+            if (record.checkIn) setScanType("Already Checked-In");
+            else {
+                await setDoc(ref, {
+                    uid,
+                    employeeName: user.name,
+                    date: today,
+                    checkIn: serverTimestamp(),
+                }, { merge: true });
+
                 setScanType("Check-In");
             }
         }
 
-        // -----------------------------------------------------
         // CHECK-OUT
-        // -----------------------------------------------------
-        if (type === "Check-Out") {
-            if (record.checkOut) {
-                setScanType("Already Checked-Out");
-            } else {
+        else if (mode === "check-out") {
+            if (record.checkOut) setScanType("Already Checked-Out");
+            else {
                 const nowDT = new Date();
-
                 let workedMinutes = 0;
                 let overtimeMinutes = 0;
                 let overtimePay = 0;
@@ -164,26 +161,20 @@ export default function AttendanceScanner() {
 
                     if (actual.isAfter(endTime)) {
                         overtimeMinutes = actual.diff(endTime, "minute");
-
-                        const { overtimePay: otPay } = calculateOvertimePay(
+                        const { overtimePay: ot } = calculateOvertimePay(
                             overtimeMinutes,
                             user.overtimeSlabs || []
                         );
-
-                        overtimePay = otPay;
+                        overtimePay = ot;
                     }
                 }
 
-                await setDoc(
-                    ref,
-                    {
-                        checkOut: serverTimestamp(),
-                        workedMinutes,
-                        overtimeMinutes,
-                        overtimePay,
-                    },
-                    { merge: true }
-                );
+                await setDoc(ref, {
+                    checkOut: serverTimestamp(),
+                    workedMinutes,
+                    overtimeMinutes,
+                    overtimePay,
+                }, { merge: true });
 
                 await updateMonthlySummary(db, uid, {
                     date: today,
@@ -200,11 +191,9 @@ export default function AttendanceScanner() {
         beepRef.current.currentTime = 0;
         beepRef.current.play().catch(() => { });
 
-        // Update UI
-        setEmployee(user);
         setStatus("success");
-
         setTimeout(() => setStatus("scanning"), 900);
+
     }, []);
 
     // -----------------------------------------------------
@@ -220,6 +209,8 @@ export default function AttendanceScanner() {
         });
 
         scanner.start();
+        setStatus("scanning");
+
         return () => scanner.stop();
     }, [handleQR]);
 
@@ -229,21 +220,22 @@ export default function AttendanceScanner() {
     return (
         <div className="scanner-page">
             <div className="scanner-card">
-                <h2>Attendance Scanner</h2>
+
+                {/* 🔙 BACK BUTTON + TITLE */}
+                <div className="scanner-header">
+                    <button className="back-btn" onClick={() => navigate(-1)}>
+                        <ArrowLeftOutlined />
+                    </button>
+                    <h2>Attendance Scanner</h2>
+                </div>
 
                 {errorMsg && <Alert type="error" message={errorMsg} showIcon />}
 
-                {/* CAMERA ALWAYS RUNNING */}
                 <div className="camera-wrapper">
                     <video ref={videoRef} className="cameraView" />
-
-                    {/* scan highlight visible only when scanning */}
-                    {status !== "success" && (
-                        <div className="scan-highlight"></div>
-                    )}
+                    {status !== "success" && <div className="scan-highlight"></div>}
                 </div>
 
-                {/* SUCCESS OVERLAY (camera still visible behind) */}
                 {status === "success" && (
                     <div className="success-overlay">
                         <div className="success-box">
@@ -256,18 +248,7 @@ export default function AttendanceScanner() {
                     </div>
                 )}
 
-                {/* <div className="success-overlay">
-                    <div className="success-box">
-                        <div className="success-icon">✔</div>
-                        <div className="success-message">
-                            <h3>{scanType} hi</h3>
-                            <p>{employee?.name} its success</p>
-                        </div>
-
-                    </div>
-                </div> */}
             </div>
         </div>
     );
-
 }

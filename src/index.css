@@ -123,3 +123,31 @@ body {
     letter-spacing: 0.6px;
     opacity: 0.9;
 }
+
+/* 🔥 Remove blue tap highlight on ALL devices */
+* {
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* 🔥 Remove focus outline from all interactive elements */
+button, .ant-btn, a, input, textarea, select {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 🔥 Global subtle press animation for all buttons */
+button, .ant-btn {
+    transition: transform 0.12s ease, opacity 0.12s ease !important;
+}
+
+button:active, .ant-btn:active {
+    transform: scale(0.96) !important;
+    opacity: 0.85 !important;
+}
+
+/* Optional: Slight hover lift for desktop */
+@media (hover: hover) {
+    button:hover, .ant-btn:hover {
+        transform: translateY(-1px);
+    }
+}

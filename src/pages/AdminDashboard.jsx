@@ -186,8 +186,8 @@ export default function AdminDashboard() {
 
             {/* ========== ORGANIZATION HEADER ========== */}
             {org && (
-                <Card className="dashboard-card ios-org-card">
-                    <h2 style={{ color: "#ff3131", marginBottom: 8 }}>
+                <Card className="dashboard-card color-card">
+                    <h2 style={{marginBottom: 8, margin : '0px', padding: '10px' }}>
                         Company: {org.name}
                     </h2>
 

@@ -1,6 +1,6 @@
 .ios-salary-page {
-    padding: 20px;
-    background: linear-gradient(180deg, #f2f4f7, #e3e6eb);
+    /* padding: 20px; */
+    /* background: linear-gradient(180deg, #f2f4f7, #e3e6eb); */
     min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
 }
@@ -48,7 +48,7 @@
     font-size: 42px;
     font-weight: 800;
     margin-top: 5px;
-    background: linear-gradient(90deg, #007aff, #34c759);
+    background: linear-gradient(90deg, #ff7300, #d60e0eca);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }

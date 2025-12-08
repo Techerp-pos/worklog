@@ -17,6 +17,7 @@ import CreateOrganization from "./pages/CreateOrganization";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SuperAdminOrgView from "./pages/SuperAdminOrgView";
 import JoinOrganization from "./pages/JoinOrganization";
+import FakeAttendanceGenerator from "./components/FakeAttendanceGenerator";
 
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
 
         <Route path="/admin/scan" element={<AttendanceScanner />} />
         <Route path="/join-organization" element={<JoinOrganization />} />
+        <Route path="/test" element={<FakeAttendanceGenerator/>} />
       </Routes>
     </BrowserRouter>
   );

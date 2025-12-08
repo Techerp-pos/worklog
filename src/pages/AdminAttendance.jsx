@@ -156,9 +156,9 @@ export default function AdminAttendance() {
                                     </div>
                                     <div className="emp-info">
                                         <div className="emp-name">{emp.name}</div>
-                                        <div className="emp-role">
+                                        {/* <div className="emp-role">
                                             {emp.department || emp.position || "Employee"}
-                                        </div>
+                                        </div> */}
                                     </div>
                                 </div>
 
@@ -174,7 +174,10 @@ export default function AdminAttendance() {
                                             </div>
                                         );
 
-                                    const worked = rec.durationFormatted || `${rec.workedMinutes}m`;
+                                    let worked = rec.durationFormatted || `${rec.workedMinutes}m`;
+                                    if (!rec.workedMinutes){
+                                        worked = 0
+                                    }
                                     const isLate =
                                         rec.checkIn?.toDate &&
                                         dayjs(rec.checkIn.toDate()).isAfter(dayjs("09:15 AM", "hh:mm A"));

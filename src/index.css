@@ -1,3 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Stack+Sans+Notch:wght@200..700&display=swap');
+
+* {
+    font-family: "Stack Sans Notch", sans-serif !important;
+}
+
+
+body,
+html,
+.ant-typography,
+.ant-menu,
+.ant-card,
+.ant-btn,
+.ant-table {
+    font-family: "Stack Sans Notch", sans-serif !important;
+}
+
+
+
 body {
     margin: 0px !important;
 }

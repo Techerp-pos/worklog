@@ -54,7 +54,7 @@ export default function App() {
           <Route path="/employee" element={<EmployeeDashboard />} />
         </Route>
 
-        <Route path="/scan" element={<AttendanceScanner />} />
+        <Route path="/admin/scan" element={<AttendanceScanner />} />
         <Route path="/join-organization" element={<JoinOrganization />} />
       </Routes>
     </BrowserRouter>

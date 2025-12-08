@@ -1,41 +1,46 @@
 import { useState } from "react";
 import { Card, Input, Button, message } from "antd";
 import { db } from "../firebase/config";
-import {
-    collection,
-    getDocs,
-    doc,
-    setDoc
-} from "firebase/firestore";
+import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import "../styles/joinOrg.css";
 
 export default function JoinOrganization() {
     const [code, setCode] = useState("");
+    const [org, setOrg] = useState(null);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleJoin = async () => {
+    // STEP 1 → Validate Join Code
+    const handleContinue = async () => {
         if (!code.trim()) return message.error("Enter join code");
 
-        // Check organization exists
+        setLoading(true);
+
         const orgSnap = await getDocs(collection(db, "organizations"));
-        let org = null;
+        let found = null;
 
         orgSnap.forEach((d) => {
             if (d.data().joinCode === code.trim()) {
-                org = { id: d.id, ...d.data() };
+                found = { id: d.id, ...d.data() };
             }
         });
 
-        if (!org) return message.error("Invalid join code");
+        setLoading(false);
 
-        // Get pending google user info
+        if (!found) return message.error("Invalid join code");
+
+        setOrg(found); // show next UI
+    };
+
+    // STEP 2 → Join Organization
+    const handleJoin = async () => {
         const uid = localStorage.getItem("pending_google_uid");
         const name = localStorage.getItem("pending_google_name");
         const email = localStorage.getItem("pending_google_email");
 
         if (!uid) return message.error("No signup in progress");
 
-        // Create user in /users
         await setDoc(doc(db, "users", uid), {
             name,
             email,
@@ -47,7 +52,6 @@ export default function JoinOrganization() {
         const userData = { uid, name, email, role: "employee", orgId: org.id };
         localStorage.setItem("worklog_user", JSON.stringify(userData));
 
-        // Cleanup
         localStorage.removeItem("pending_google_uid");
         localStorage.removeItem("pending_google_name");
         localStorage.removeItem("pending_google_email");
@@ -57,18 +61,57 @@ export default function JoinOrganization() {
     };
 
     return (
-        <div style={{ display: "flex", height: "100vh", justifyContent: "center", alignItems: "center" }}>
-            <Card title="Join Organization" style={{ width: 350 }}>
-                <Input
-                    placeholder="Enter Join Code (e.g., ORG-ABCD12)"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                />
+        <div className="join-container">
 
-                <Button type="primary" block style={{ marginTop: 10 }} onClick={handleJoin}>
-                    Join Organization
-                </Button>
-            </Card>
+            {/* STEP 1 – ENTER CODE */}
+            {!org && (
+                <div className="join-card">
+                    <h2>Enter join code</h2>
+                    <p className="subtitle">Enter the unique code your organization gave you.</p>
+
+                    <Input
+                        className="join-input"
+                        placeholder="e.g., ORG-XYZ123"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                    />
+
+                    <Button
+                        type="primary"
+                        block
+                        className="continue-btn"
+                        onClick={handleContinue}
+                        loading={loading}
+                    >
+                        Continue →
+                    </Button>
+                </div>
+            )}
+
+            {/* STEP 2 – SHOW ORGANIZATION */}
+            {org && (
+                <div className="org-card">
+                    <div className="org-avatar">
+                        <img
+                            src={org.logo || "https://img.icons8.com/glassmorphism/96/company.png"}
+                            alt="org"
+                        />
+                    </div>
+
+                    <h2 className="org-name">{org.name}</h2>
+
+                    <p className="subtitle">You are joining this organization.</p>
+
+                    <Button
+                        type="primary"
+                        block
+                        className="join-btn"
+                        onClick={handleJoin}
+                    >
+                        Join Organization →
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,0 +1,182 @@
+.join-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #fafafa;
+    padding: 0px 20px;
+}
+
+/* Responsive pop-up cards */
+.join-card,
+.org-card {
+    width: 100%;
+    max-width: 380px;
+    background: white;
+    padding: 32px 24px;
+    border-radius: 32px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    animation: popUp 0.3s ease;
+}
+
+/* Smooth enter animation */
+@keyframes popUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Typography */
+h2 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.subtitle {
+    margin-top: -5px;
+    margin-bottom: 20px;
+    opacity: 0.6;
+    font-size: 14px;
+}
+
+/* Input style */
+.join-input {
+    border-radius: 16px !important;
+    height: 48px;
+    font-size: 16px;
+    text-align: center;
+}
+
+/* Buttons */
+.continue-btn,
+.join-btn {
+    margin-top: 20px;
+    height: 48px !important;
+    border-radius: 16px !important;
+    font-size: 16px !important;
+}
+
+/* Org avatar */
+.org-avatar img {
+    width: 96px;
+    height: 96px;
+    /* border-radius: 50%; */
+    margin-bottom: 10px;
+}
+
+/* ------------------------------------------- */
+/*            RESPONSIVE BREAKPOINTS           */
+/* ------------------------------------------- */
+
+/* ↓↓↓ Small phones (iPhone SE, 13 mini) ↓↓↓ */
+@media (max-width: 380px) {
+
+    .join-card,
+    .org-card {
+        padding: 28px 20px;
+        border-radius: 28px;
+    }
+
+    h2 {
+        font-size: 20px;
+    }
+
+    .subtitle {
+        font-size: 13px;
+    }
+
+    .join-input {
+        height: 44px;
+        font-size: 15px;
+    }
+
+    .continue-btn,
+    .join-btn {
+        height: 44px !important;
+        font-size: 15px !important;
+    }
+
+    .org-avatar img {
+        width: 80px;
+        height: 80px;
+    }
+}
+
+/* ↓↓↓ Very small screens (foldables, Android small) ↓↓↓ */
+@media (max-width: 320px) {
+
+    .join-card,
+    .org-card {
+        padding: 24px 16px;
+        border-radius: 24px;
+    }
+
+    h2 {
+        font-size: 18px;
+    }
+
+    .subtitle {
+        font-size: 12px;
+    }
+
+    .join-input {
+        height: 40px;
+        font-size: 14px;
+    }
+
+    .continue-btn,
+    .join-btn {
+        height: 40px !important;
+        font-size: 14px !important;
+    }
+
+    .org-avatar img {
+        width: 70px;
+        height: 70px;
+    }
+}
+
+/* ↓↓↓ Tablets (iPad, big screens) ↓↓↓ */
+@media (min-width: 768px) {
+    .join-container {
+        padding-top: 60px;
+    }
+
+    .join-card,
+    .org-card {
+        max-width: 420px;
+        padding: 40px 32px;
+        border-radius: 36px;
+    }
+
+    h2 {
+        font-size: 26px;
+    }
+
+    .subtitle {
+        font-size: 15px;
+    }
+
+    .join-input {
+        height: 52px;
+        font-size: 17px;
+    }
+
+    .continue-btn,
+    .join-btn {
+        height: 52px !important;
+        font-size: 17px !important;
+    }
+
+    .org-avatar img {
+        width: 110px;
+        height: 110px;
+    }
+}

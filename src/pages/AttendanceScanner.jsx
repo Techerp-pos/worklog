@@ -1,5 +1,5 @@
 // ======================================================
-// SECURE DYNAMIC QR ATTENDANCE SCANNER
+// SECURE DYNAMIC QR ATTENDANCE SCANNER (FINAL VERSION)
 // ======================================================
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -11,8 +11,8 @@ import CryptoJS from "crypto-js";
 import { db } from "../firebase/config";
 import {
     doc,
-    getDoc,
     setDoc,
+    getDoc,
     serverTimestamp,
 } from "firebase/firestore";
 
@@ -23,7 +23,9 @@ import { updateMonthlySummary } from "../utils/updateMonthlySummary";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
-// SAME SECRET AS MyQR.jsx
+import { getUserCached } from "../utils/getUserCached";
+
+// SAME SECRET used when generating QR
 const SECRET = "WORKLOG_SECRET_KEY_123";
 
 QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
@@ -35,17 +37,15 @@ export default function AttendanceScanner() {
     const videoRef = useRef(null);
     const beepRef = useRef(null);
 
-    // UI states
+    const [paused, setPaused] = useState(false);
     const [status, setStatus] = useState("loading");
+
     const [employee, setEmployee] = useState(null);
     const [scanType, setScanType] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
 
-    // Prevent rapid scanning
-    const scanLock = useRef(false);
-
     // -----------------------------------------------------
-    // PRELOAD SOUND
+    // PRELOAD BEEP SOUND
     // -----------------------------------------------------
     useEffect(() => {
         beepRef.current = new Audio("/sound/beep.mp3");
@@ -53,20 +53,18 @@ export default function AttendanceScanner() {
     }, []);
 
     // -----------------------------------------------------
-    // VERIFY TOKEN
+    // VERIFY TOKEN (DECRYPT DYNAMIC QR)
     // -----------------------------------------------------
     const verifyToken = (token) => {
         try {
             const { uid, mode, ts, nonce, sig } = token;
-
             const now = Math.floor(Date.now() / 1000);
 
-            // Expired (allow 20 sec window)
+            // Expired after 20 seconds
             if (now - ts > 20) {
                 return { valid: false, reason: "QR expired" };
             }
 
-            // Signature check
             const payload = `${uid}|${mode}|${ts}|${nonce}`;
             const expected = CryptoJS.HmacSHA256(payload, SECRET).toString();
 
@@ -76,62 +74,73 @@ export default function AttendanceScanner() {
 
             return { valid: true, uid, mode };
 
-        } catch (err) {
+        } catch {
             return { valid: false, reason: "Invalid QR format" };
         }
     };
 
     // -----------------------------------------------------
-    // MAIN SCAN HANDLER
+    // MAIN SCAN HANDLER — NO DOUBLE SCANS
     // -----------------------------------------------------
     const handleQR = useCallback(async (data) => {
 
-        if (scanLock.current) return;
-        scanLock.current = true;
-        setTimeout(() => (scanLock.current = false), 600);
+        if (paused) return;
+        setPaused(true);      // 🔥 HARD STOP scanning
 
         let token;
         try {
             token = JSON.parse(data);
         } catch {
             setErrorMsg("Invalid QR Code");
+
+            beepRef.current.currentTime = 0;
+            beepRef.current.play().catch(() => { });
+
             setTimeout(() => setErrorMsg(null), 1500);
+            setPaused(false);
             return;
         }
 
         const validation = verifyToken(token);
-
         if (!validation.valid) {
             setErrorMsg(validation.reason);
+
+            beepRef.current.currentTime = 0;
+            beepRef.current.play().catch(() => { });
+
             setTimeout(() => setErrorMsg(null), 1500);
+            setPaused(false);
             return;
         }
 
         const { uid, mode } = validation;
 
-        // Load user info
-        const snap = await getDoc(doc(db, "users", uid));
-        if (!snap.exists()) {
+        // 🔥 FETCH USER USING CACHE (FAST)
+        const user = await getUserCached(uid);
+        if (!user) {
             setErrorMsg("User not found");
+            setPaused(false);
             return;
         }
 
-        const user = snap.data();
         setEmployee(user);
 
-        // -----------------------
-        // Attendance Logic
-        // -----------------------
+        // -----------------------------------------------------
+        // ATTENDANCE LOGIC
+        // -----------------------------------------------------
         const today = dayjs().format("YYYY-MM-DD");
         const ref = doc(db, "attendance", uid, "days", today);
         const todaySnap = await getDoc(ref);
-
         const record = todaySnap.exists() ? todaySnap.data() : {};
 
-        // CHECK-IN
+        // =====================================================
+        // CHECK-IN LOGIC
+        // =====================================================
         if (mode === "check-in") {
-            if (record.checkIn) setScanType("Already Checked-In");
-            else {
+
+            if (record.checkIn) {
+                setScanType("Already Checked-In");
+            } else {
                 await setDoc(ref, {
                     uid,
                     employeeName: user.name,
@@ -141,32 +150,72 @@ export default function AttendanceScanner() {
 
                 setScanType("Check-In");
             }
+
+            beepRef.current.currentTime = 0;
+            beepRef.current.play().catch(() => { });
         }
 
-        // CHECK-OUT
-        else if (mode === "check-out") {
-            if (record.checkOut) setScanType("Already Checked-Out");
-            else {
-                const nowDT = new Date();
-                let workedMinutes = 0;
+        // =====================================================
+        // CHECK-OUT LOGIC
+        // =====================================================
+        if (mode === "check-out") {
+
+            // ❌ Cannot checkout before check-in
+            if (!record.checkIn) {
+                setErrorMsg("Cannot Check-Out before Check-In");
+
+                beepRef.current.currentTime = 0;
+                beepRef.current.play().catch(() => { });
+
+                setTimeout(() => setErrorMsg(null), 1500);
+                setPaused(false);
+                return;
+            }
+
+            const checkInDT = record.checkIn.toDate();
+            const nowDT = new Date();
+            const workedMinutes = Math.floor((nowDT - checkInDT) / 60000);
+
+            // -------------------------------------------------
+            // 🔥 EARLY CHECKOUT PREVENTION (BASED ON USER DOC)
+            // -------------------------------------------------
+            const start = dayjs(today + " " + user.workStartTime);
+            const end = dayjs(today + " " + user.workEndTime);
+            const requiredMinutes = end.diff(start, "minute"); // full shift
+
+            if (workedMinutes < requiredMinutes) {
+                setErrorMsg(
+                    `Too early to Check-Out. Worked ${(workedMinutes / 60).toFixed(1)}h / Required ${(requiredMinutes / 60).toFixed(1)}h`
+                );
+
+                beepRef.current.currentTime = 0;
+                beepRef.current.play().catch(() => { });
+
+                setTimeout(() => setErrorMsg(null), 1800);
+                setPaused(false);
+                return;
+            }
+
+            // -------------------------------------------------
+            // VALID CHECK-OUT
+            // -------------------------------------------------
+            if (record.checkOut) {
+                setScanType("Already Checked-Out");
+
+                beepRef.current.currentTime = 0;
+                beepRef.current.play().catch(() => { });
+            } else {
+
                 let overtimeMinutes = 0;
                 let overtimePay = 0;
 
-                if (record.checkIn?.toDate) {
-                    const checkInDT = record.checkIn.toDate();
-                    workedMinutes = Math.floor((nowDT - checkInDT) / 60000);
-
-                    const endTime = dayjs(today + " " + user.workEndTime);
-                    const actual = dayjs(nowDT);
-
-                    if (actual.isAfter(endTime)) {
-                        overtimeMinutes = actual.diff(endTime, "minute");
-                        const { overtimePay: ot } = calculateOvertimePay(
-                            overtimeMinutes,
-                            user.overtimeSlabs || []
-                        );
-                        overtimePay = ot;
-                    }
+                const actual = dayjs(nowDT);
+                if (actual.isAfter(end)) {
+                    overtimeMinutes = actual.diff(end, "minute");
+                    overtimePay = calculateOvertimePay(
+                        overtimeMinutes,
+                        user.overtimeSlabs || []
+                    ).overtimePay;
                 }
 
                 await setDoc(ref, {
@@ -184,17 +233,23 @@ export default function AttendanceScanner() {
                 });
 
                 setScanType("Check-Out");
+
+                beepRef.current.currentTime = 0;
+                beepRef.current.play().catch(() => { });
             }
         }
 
-        // Play sound
-        beepRef.current.currentTime = 0;
-        beepRef.current.play().catch(() => { });
-
+        // -----------------------------------------------------
+        // SUCCESS UI
+        // -----------------------------------------------------
         setStatus("success");
-        setTimeout(() => setStatus("scanning"), 900);
 
-    }, []);
+        setTimeout(() => {
+            setStatus("scanning");
+            setPaused(false);  // Resume scanning
+        }, 1500);
+
+    }, [paused]);
 
     // -----------------------------------------------------
     // START CAMERA
@@ -202,17 +257,23 @@ export default function AttendanceScanner() {
     useEffect(() => {
         if (!videoRef.current) return;
 
-        const scanner = new QrScanner(videoRef.current, (res) => handleQR(res.data), {
-            preferredCamera: "environment",
-            highlightScanRegion: true,
-            highlightCodeOutline: true,
-        });
+        const scanner = new QrScanner(
+            videoRef.current,
+            (res) => {
+                if (!paused) handleQR(res.data);
+            },
+            {
+                preferredCamera: "environment",
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+            }
+        );
 
         scanner.start();
         setStatus("scanning");
 
         return () => scanner.stop();
-    }, [handleQR]);
+    }, [handleQR, paused]);
 
     // -----------------------------------------------------
     // UI
@@ -221,7 +282,6 @@ export default function AttendanceScanner() {
         <div className="scanner-page">
             <div className="scanner-card">
 
-                {/* 🔙 BACK BUTTON + TITLE */}
                 <div className="scanner-header">
                     <button className="back-btn" onClick={() => navigate(-1)}>
                         <ArrowLeftOutlined />

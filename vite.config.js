@@ -62,6 +62,10 @@ export default defineConfig({
             form_factor: "wide"
           }
         ]
+      },
+      workbox: {
+        // 👇 Add this configuration
+        maximumFileSizeToCacheInBytes: 5000000 // Sets the limit to 5 MB (5,000,000 bytes)
       }
     })
 

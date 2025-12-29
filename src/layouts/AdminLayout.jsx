@@ -37,7 +37,7 @@ export default function AdminLayout() {
                 </button>
 
                 <div className="fixed-logo">
-                    <div className="logo-placeholder">W</div>
+                    <div className="logo-placeholder"><img src="/icons/icon-72.png"></img></div>
                     <h2 className="sidebar-title">WorkLog</h2>
                 </div>
             </div>

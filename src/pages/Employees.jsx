@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { Table, Button, Modal, Input, Select, Space } from "antd";
+import { Table, Button, Modal, Input, Select } from "antd";
 import { PlusOutlined, EditOutlined, SearchOutlined } from "@ant-design/icons";
 import { db } from "../firebase/config";
-import { collection, onSnapshot } from "firebase/firestore";
+// 1. Import query and where
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import EmployeeForm from "../components/EmployeeForm";
 import "../styles/employee.css";
+import { useAuth } from "../context/AuthContext";
 
 export default function Employees() {
+    const { orgId } = useAuth(); // 2. Get orgId from context
     const [data, setData] = useState([]);
     const [open, setOpen] = useState(false);
     const [editData, setEditData] = useState(null);
@@ -14,13 +17,24 @@ export default function Employees() {
     const [deptFilter, setDeptFilter] = useState("");
 
     useEffect(() => {
-        const unsub = onSnapshot(collection(db, "users"), (snap) => {
+        // 3. Prevent running if orgId hasn't loaded yet
+        if (!orgId) return;
+
+        // 4. Filter by orgId and role directly in the Firestore query
+        const q = query(
+            collection(db, "users"),
+            where("orgId", "==", orgId),
+            where("role", "==", "employee")
+        );
+
+        const unsub = onSnapshot(q, (snap) => {
             const arr = [];
             snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
-            setData(arr.filter((x) => x.role === "employee"));
+            setData(arr);
         });
+
         return () => unsub();
-    }, []);
+    }, [orgId]); // 5. Add orgId as a dependency
 
     const departments = [...new Set(data.map(d => d.department || d.position).filter(Boolean))];
 
@@ -51,10 +65,7 @@ export default function Employees() {
 
     return (
         <div className="employee-page">
-
-            {/* 🔥 RESPONSIVE TOPBAR */}
             <div className="employee-header">
-                {/* Add Employee button */}
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
@@ -64,7 +75,6 @@ export default function Employees() {
                     Add
                 </Button>
 
-                {/* Search */}
                 <Input
                     placeholder="Search employee"
                     value={search}
@@ -74,7 +84,6 @@ export default function Employees() {
                     allowClear
                 />
 
-                {/* Department Filter */}
                 <Select
                     placeholder="Department"
                     allowClear
@@ -85,18 +94,16 @@ export default function Employees() {
                 />
             </div>
 
-            {/* 🔥 RESPONSIVE TABLE */}
             <div className="table-wrapper">
                 <Table
                     columns={columns}
                     dataSource={filteredData}
                     rowKey="id"
                     pagination={{ pageSize: 10 }}
-                    scroll={{ x: true }}  // Enables horizontal scroll on mobile
+                    scroll={{ x: true }}
                 />
             </div>
 
-            {/* Modal */}
             <Modal
                 open={open}
                 onCancel={() => setOpen(false)}

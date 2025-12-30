@@ -146,7 +146,6 @@ export default function Login() {
                 <div className="login-box">
 
                     <div style={{ display: "flex", justifyContent: "center", gap: 8, alignItems: 'center' }}>
-                        <div className="logo-placeholder">W</div>
                         <h2 className="login-title">Welcome to WorkLog</h2>
                     </div>
 

@@ -79,17 +79,34 @@ export default function AdminDashboard() {
     // LOAD USERS (employees)
     // ======================================================
     useEffect(() => {
-        onSnapshot(collection(db, "users"), (snap) => {
+        const user = JSON.parse(localStorage.getItem("worklog_user"));
+        let orgId = user?.orgId;
+
+        const override = localStorage.getItem("worklog_admin_override_org");
+        if (override) orgId = override;
+
+        if (!orgId) return;
+
+        const unsub = onSnapshot(collection(db, "users"), (snap) => {
             let map = {};
+
             snap.forEach((d) => {
                 const u = d.data();
-                if (u.role === "employee") map[d.id] = u;
+                if (u.role === "employee" && u.orgId === orgId) {
+                    map[d.id] = u;
+                }
             });
 
             setUsers(map);
-            setStats((s) => ({ ...s, totalEmployees: Object.keys(map).length }));
+            setStats((s) => ({
+                ...s,
+                totalEmployees: Object.keys(map).length,
+            }));
         });
+
+        return () => unsub();
     }, []);
+
 
     // ======================================================
     // LOAD TODAY'S ATTENDANCE
@@ -187,7 +204,7 @@ export default function AdminDashboard() {
             {/* ========== ORGANIZATION HEADER ========== */}
             {org && (
                 <Card className="dashboard-card color-card">
-                    <h2 style={{marginBottom: 8, margin : '0px', padding: '10px' }}>
+                    <h2 style={{ marginBottom: 8, margin: '0px', padding: '10px' }}>
                         Company: {org.name}
                     </h2>
 

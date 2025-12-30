@@ -43,6 +43,16 @@ export default function AttendanceScanner() {
     const [scanType, setScanType] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
 
+    // ✅ ADMIN ORG ID FROM LOCAL STORAGE
+    const adminOrgId = (() => {
+        try {
+            const admin = JSON.parse(localStorage.getItem("worklog_user"));
+            return admin?.orgId || null;
+        } catch {
+            return null;
+        }
+    })();
+
     useEffect(() => {
         beepRef.current = new Audio("/sound/beep.mp3");
         beepRef.current.load();
@@ -50,12 +60,20 @@ export default function AttendanceScanner() {
 
     const verifyToken = (token) => {
         try {
-            const { uid, mode, ts, nonce, sig } = token;
+            const { uid, orgId, mode, ts, nonce, sig } = token;
             const now = Math.floor(Date.now() / 1000);
+
+            if (!adminOrgId) {
+                return { valid: false, reason: "Admin session expired" };
+            }
+
+            if (orgId !== adminOrgId) {
+                return { valid: false, reason: "QR does not belong to your organization" };
+            }
 
             if (now - ts > 20) return { valid: false, reason: "QR expired" };
 
-            const payload = `${uid}|${mode}|${ts}|${nonce}`;
+            const payload = `${uid}|${orgId}|${mode}|${ts}|${nonce}`;
             const expected = CryptoJS.HmacSHA256(payload, SECRET).toString();
 
             if (expected !== sig) return { valid: false, reason: "Invalid signature" };
@@ -131,7 +149,7 @@ export default function AttendanceScanner() {
         }
 
         // -----------------------------------------------------
-        // CHECK-OUT  (OVERNIGHT SUPPORT ADDED)
+        // CHECK-OUT (OVERNIGHT SUPPORT)
         // -----------------------------------------------------
         if (mode === "check-out") {
 
@@ -143,19 +161,15 @@ export default function AttendanceScanner() {
                 return;
             }
 
-            // Convert times
             let checkInDT = record.checkIn.toDate();
             let checkOutDT = new Date();
 
-            // OVERNIGHT SHIFT
             if (checkOutDT < checkInDT) {
                 checkOutDT.setDate(checkOutDT.getDate() + 1);
             }
 
-            // Calculate worked minutes
             const workedMinutes = Math.floor((checkOutDT - checkInDT) / 60000);
 
-            // EARLY CHECKOUT PREVENTION
             const start = dayjs(today + " " + user.workStartTime);
             const end = dayjs(today + " " + user.workEndTime);
             const requiredMinutes = end.diff(start, "minute");
@@ -164,7 +178,6 @@ export default function AttendanceScanner() {
                 setErrorMsg(
                     `Too early to Check-Out. Worked ${(workedMinutes / 60).toFixed(1)}h / Required ${(requiredMinutes / 60).toFixed(1)}h`
                 );
-
                 beepRef.current.play();
                 setTimeout(() => setErrorMsg(null), 1800);
                 setPaused(false);
@@ -176,7 +189,6 @@ export default function AttendanceScanner() {
                 beepRef.current.play();
             } else {
 
-                // OT logic
                 let overtimeMinutes = 0;
                 let overtimePay = 0;
 
@@ -215,7 +227,7 @@ export default function AttendanceScanner() {
             setPaused(false);
         }, 1500);
 
-    }, [paused]);
+    }, [paused, adminOrgId]);
 
     useEffect(() => {
         if (!videoRef.current) return;
@@ -247,7 +259,7 @@ export default function AttendanceScanner() {
                     <h2>Attendance Scanner</h2>
                 </div>
 
-                {errorMsg && <Alert type="error" message={errorMsg} showIcon />}
+                {errorMsg && <Alert type="error" message={errorMsg} showIcon style={{marginBottom: '20px'}}/>}
 
                 <div className="camera-wrapper">
                     <video ref={videoRef} className="cameraView" />

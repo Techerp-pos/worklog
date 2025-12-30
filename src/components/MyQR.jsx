@@ -1,66 +1,84 @@
 import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
 import CryptoJS from "crypto-js";
-import { auth } from "../firebase/config";
 import "../styles/MyQR.css";
 
-const SECRET = "WORKLOG_SECRET_KEY_123"; // change to a long random key
+const SECRET = "WORKLOG_SECRET_KEY_123"; // MUST match scanner
 
 export default function MyQR() {
-    const [qrImage, setQrImage] = useState("");
-    const [mode, setMode] = useState(null); // no mode until user picks
-    const [userId, setUserId] = useState(null);
+    const [qrImage, setQrImage] = useState(null);
+    const [mode, setMode] = useState(null);
     const intervalRef = useRef(null);
 
-    useEffect(() => {
-        const unsub = auth.onAuthStateChanged((user) => {
-            if (!user) return;
-            setUserId(user.uid);
-        });
-        return () => unsub();
-    }, []);
+    // --------------------------------------------
+    // Read user instantly from localStorage
+    // --------------------------------------------
+    const getLocalUser = () => {
+        try {
+            const raw = localStorage.getItem("worklog_user");
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
+    };
 
-    useEffect(() => {
-        if (!userId || !mode) return;
+    const user = getLocalUser();
+    const uid = user?.uid;
+    const orgId = user?.orgId;
 
-        // Start auto-refresh when mode selected
-        generateQR(userId, mode);
+    // --------------------------------------------
+    // Auto-generate QR
+    // --------------------------------------------
+    useEffect(() => {
+        if (!uid || !orgId || !mode) return;
+
+        generateQR(uid, orgId, mode);
+
         intervalRef.current = setInterval(() => {
-            generateQR(userId, mode);
-        }, 15000); // refresh every 15 seconds
+            generateQR(uid, orgId, mode);
+        }, 15000);
 
         return () => clearInterval(intervalRef.current);
-    }, [userId, mode]);
+    }, [uid, orgId, mode]);
 
-    // Create secure signed token
-    const generateToken = (uid, mode) => {
+    // --------------------------------------------
+    // Secure token generator
+    // --------------------------------------------
+    const generateToken = (uid, orgId, mode) => {
         const ts = Math.floor(Date.now() / 1000);
         const nonce = Math.random().toString(36).substring(2, 10);
 
-        const payload = `${uid}|${mode}|${ts}|${nonce}`;
+        const payload = `${uid}|${orgId}|${mode}|${ts}|${nonce}`;
         const sig = CryptoJS.HmacSHA256(payload, SECRET).toString();
 
-        return { uid, mode, ts, nonce, sig };
+        return { uid, orgId, mode, ts, nonce, sig };
     };
 
-    const generateQR = async (uid, mode) => {
-        const token = generateToken(uid, mode);
-        const json = JSON.stringify(token);
+    const generateQR = async (uid, orgId, mode) => {
+        try {
+            const token = generateToken(uid, orgId, mode);
+            const json = JSON.stringify(token);
 
-        const img = await QRCode.toDataURL(json, {
-            width: 260,
-            margin: 1,
-        });
-        setQrImage(img);
+            const img = await QRCode.toDataURL(json, {
+                width: 260,
+                margin: 1,
+            });
+
+            setQrImage(img);
+        } catch (err) {
+            console.error("QR generation failed", err);
+            setQrImage(null);
+        }
     };
 
+    // --------------------------------------------
+    // UI
+    // --------------------------------------------
     return (
         <div className="qr-wrapper">
-
-            {/* TITLE */}
             <h2 className="qr-title">My Attendance QR</h2>
 
-            {/* If no mode selected yet → show two buttons */}
             {!mode && (
                 <div className="mode-select">
                     <button
@@ -79,18 +97,33 @@ export default function MyQR() {
                 </div>
             )}
 
-            {/* After selecting mode → show QR */}
             {mode && (
                 <div className="qr-card">
-                    <img src={qrImage} alt="QR" className="qr-img" />
+
+                    {qrImage ? (
+                        <img
+                            src={qrImage}
+                            alt="Attendance QR"
+                            className="qr-img"
+                        />
+                    ) : (
+                        <div className="qr-loading">
+                            Generating QR…
+                        </div>
+                    )}
 
                     <p className="qr-mode">
                         Mode: <b>{mode.toUpperCase()}</b>
                     </p>
 
-                    <p className="refresh-note">QR auto-refreshes every 15 seconds</p>
+                    <p className="qr-company">
+                        Company: <b>{orgId}</b>
+                    </p>
 
-                    {/* Allow switching mode */}
+                    <p className="refresh-note">
+                        QR auto-refreshes every 15 seconds
+                    </p>
+
                     <div className="mode-switch">
                         <button
                             className="btn-checkin-small"
@@ -108,7 +141,6 @@ export default function MyQR() {
                     </div>
                 </div>
             )}
-
         </div>
     );
 }
